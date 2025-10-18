@@ -1,4 +1,4 @@
-# Sistema Logístico Móvil
+# Sistema Logístico Móvil - editado
 
 Aplicación móvil desarrollada en **Kotlin con Jetpack Compose**, diseñada para optimizar la gestión logística tanto para **operativos internos** como para **clientes finales**.  
 El sistema permite administrar operaciones, incidencias, cotizaciones, facturas y comunicación interna, todo desde una interfaz móvil centralizada.
