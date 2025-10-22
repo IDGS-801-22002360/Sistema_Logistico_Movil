@@ -1,0 +1,17 @@
+name: Crear tarjeta en Trello
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  crear-tarjeta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar API de Trello
+        run: |
+          curl -X POST "https://api.trello.com/1/cards" \
+          -d "name=${{ github.event.issue.title }}" \
+          -d "desc=${{ github.event.issue.body }}" \
+          -d "idList=TU_ID_DE_LISTA" \
+          -d "key=${{ secrets.TRELLO_KEY }}" \
+          -d "token=${{ secrets.TRELLO_TOKEN }}"
