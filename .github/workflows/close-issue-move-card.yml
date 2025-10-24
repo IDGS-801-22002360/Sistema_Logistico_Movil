@@ -12,17 +12,20 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
+          TRELLO_API_KEY: ${{ secrets.TRELLO_API_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          TRELLO_BOARD_ID: ${{ secrets.TRELLO_BOARD_ID }}
+          TRELLO_DONE_LIST_ID: ${{ secrets.TRELLO_DONE_LIST_ID }}
         run: |
           # Script simple con curl para API Trello (busca card por nombre/título del issue)
-          curl -s -X GET "https://api.trello.com/1/boards/${{ secrets.TRELLO_BOARD_ID }}/cards?key=${{ secrets.TRELLO_API_KEY }}&token=${{ secrets.TRELLO_TOKEN }}" \
+          curl -s -X GET "https://api.trello.com/1/boards/$TRELLO_BOARD_ID/cards?key=$TRELLO_API_KEY&token=$TRELLO_TOKEN" \
             | jq -r ".[] | select(.name | contains(\"$ISSUE_TITLE\")) | .id" | head -1 > card_id.txt  # Encuentra primera card que coincida con título
           
           CARD_ID=$(cat card_id.txt)
           if [ -n "$CARD_ID" ]; then
-            curl -s -X PUT "https://api.trello.com/1/cards/$CARD_ID/idList?value=${{ secrets.TRELLO_DONE_LIST_ID }}&key=${{ secrets.TRELLO_API_KEY }}&token=${{ secrets.TRELLO_TOKEN }}"
+            curl -s -X PUT "https://api.trello.com/1/cards/$CARD_ID/idList?value=$TRELLO_DONE_LIST_ID&key=$TRELLO_API_KEY&token=$TRELLO_TOKEN"
             echo "Card $CARD_ID movida a Hecho para issue #$ISSUE_NUMBER"
           else
             echo "No se encontró card para issue #$ISSUE_NUMBER"
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
