@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Fondo circular -->\n    <path
+        android:fillColor="#1976D2"
+        android:pathData="M60,60m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0"/>
+    
+    <!-- Círculo interno -->\n    <path
+        android:fillColor="#21B7CE"
+        android:pathData="M60,60m-35,0a35,35 0,1 1,70 0a35,35 0,1 1,-70 0"/>
+    
+    <!-- Letra U -->\n    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,35 L40,55 Q40,65 50,65 L60,65 Q70,65 70,55 L70,35 L75,35 L75,55 Q75,72 60,72 L50,72 Q35,72 35,55 L35,35 L40,35 Z"/>
+    
+    <!-- Letra T -->\n    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,80 L75,80 L75,85 L62.5,85 L62.5,100 L57.5,100 L57.5,85 L45,85 L45,80 Z"/>
+    
+    <!-- Letra L -->\n    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M80,80 L80,95 L95,95 L95,100 L75,100 L75,80 L80,80 Z"/>
+        
+</vector>

@@ -1,0 +1,120 @@
+<resources>
+    <string name="app_name">CRM Logístico</string>
+    
+    <!-- Autenticación -->
+    <string name="login_title">Iniciar Sesión</string>
+    <string name="login_subtitle">Bienvenido a CRM Logístico</string>
+    <string name="login_description">Inicia sesión en tu cuenta</string>
+    <string name="email_hint">Usuario/Email</string>
+    <string name="password_hint">Contraseña</string>
+    <string name="remember_me">Recordar sesión</string>
+    <string name="forgot_password">¿Olvidé mi contraseña?</string>
+    <string name="login_button">INICIAR SESIÓN</string>
+    <string name="no_account">¿No tienes cuenta? Regístrate aquí</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard_welcome">Bienvenido</string>
+    <string name="dashboard_operations">Operaciones</string>
+    <string name="dashboard_quotes">Cotizaciones</string>
+    <string name="dashboard_invoices">Facturas</string>
+    <string name="dashboard_notifications">Notificaciones</string>
+    <string name="dashboard_profile">Perfil</string>
+    
+    <!-- Operaciones -->
+    <string name="operations_title">Operaciones</string>
+    <string name="operations_search">Buscar operaciones...</string>
+    <string name="operation_detail_title">Detalle de Operación</string>
+    <string name="operation_status">Estatus</string>
+    <string name="operation_reference">Referencia</string>
+    <string name="operation_client">Cliente</string>
+    <string name="operation_service_type">Tipo de Servicio</string>
+    <string name="operation_cargo_type">Tipo de Carga</string>
+    <string name="operation_provider">Proveedor</string>
+    <string name="operation_estimated_arrival">Llegada Estimada</string>
+    <string name="operation_estimated_delivery">Entrega Estimada</string>
+    
+    <!-- Cotizaciones -->
+    <string name="quotes_title">Cotizaciones</string>
+    <string name="quote_detail_title">Detalle de Cotización</string>
+    <string name="quote_request_title">Solicitar Cotización</string>
+    <string name="accept_quote">Aceptar Cotización</string>
+    <string name="reject_quote">Rechazar Cotización</string>
+    <string name="quote_status_pending">Pendiente</string>
+    <string name="quote_status_approved">Aprobada</string>
+    <string name="quote_status_rejected">Rechazada</string>
+    
+    <!-- Facturas -->
+    <string name="invoices_title">Facturas</string>
+    <string name="invoice_detail_title">Detalle de Factura</string>
+    <string name="invoice_number">Número de Factura</string>
+    <string name="invoice_amount">Monto</string>
+    <string name="invoice_due_date">Fecha de Vencimiento</string>
+    <string name="invoice_status_pending">Pendiente</string>
+    <string name="invoice_status_paid">Pagada</string>
+    <string name="invoice_status_overdue">Vencida</string>
+    
+    <!-- Incidencias y Demoras -->
+    <string name="incidents_title">Incidencias</string>
+    <string name="create_incident">Reportar Incidencia</string>
+    <string name="incident_type">Tipo de Incidencia</string>
+    <string name="incident_description">Descripción</string>
+    <string name="delays_title">Demoras</string>
+    <string name="create_delay">Registrar Demora</string>
+    <string name="delay_type">Tipo de Demora</string>
+    
+    <!-- Tracking -->
+    <string name="tracking_title">Seguimiento</string>
+    <string name="tracking_map">Mapa de Seguimiento</string>
+    <string name="tracking_history">Historial</string>
+    <string name="current_location">Ubicación Actual</string>
+    
+    <!-- Comunicación -->
+    <string name="chat_title">Chat</string>
+    <string name="send_message">Enviar mensaje...</string>
+    
+    <!-- Notificaciones -->
+    <string name="notifications_title">Notificaciones</string>
+    <string name="no_notifications">No hay notificaciones</string>
+    
+    <!-- Soporte -->
+    <string name="support_title">Soporte</string>
+    <string name="feedback_title">Enviar Comentarios</string>
+    <string name="feedback_message">Escribe tus comentarios...</string>
+    <string name="send_feedback">Enviar</string>
+    
+    <!-- Botones generales -->
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="edit">Editar</string>
+    <string name="delete">Eliminar</string>
+    <string name="filter">Filtrar</string>
+    <string name="search">Buscar</string>
+    <string name="refresh">Actualizar</string>
+    <string name="back">Volver</string>
+    
+    <!-- Estados -->
+    <string name="loading">Cargando...</string>
+    <string name="error">Error</string>
+    <string name="success">Éxito</string>
+    <string name="no_data">No hay datos disponibles</string>
+    
+    <!-- Tipos de servicio -->
+    <string name="service_maritime">Marítimo</string>
+    <string name="service_air">Aéreo</string>
+    <string name="service_ground">Terrestre</string>
+    <string name="service_multimodal">Multimodal</string>
+    <string name="service_last_mile">Última Milla</string>
+    <string name="service_domestic">Doméstico</string>
+    
+    <!-- Estados de operación -->
+    <string name="status_in_transit">En Tránsito</string>
+    <string name="status_in_customs">En Aduana</string>
+    <string name="status_delivered">Entregado</string>
+    <string name="status_cancelled">Cancelado</string>
+    <string name="status_pending_docs">Pendiente Documentos</string>
+    
+    <!-- Configuración -->
+    <string name="settings_title">Configuración</string>
+    <string name="logout">Cerrar Sesión</string>
+    <string name="profile_title">Mi Perfil</string>
+</resources>
