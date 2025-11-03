@@ -2,6 +2,7 @@ package com.example.crm_logistico_movil.repository
 
 import com.example.crm_logistico_movil.api.ApiClient
 import com.example.crm_logistico_movil.models.*
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -10,7 +11,13 @@ class ClientRepository {
 
     suspend fun createSolicitud(solicitudRequest: SolicitudRequest): Result<SolicitudResponse> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.crearSolicitud(solicitudRequest)
+            // Prefer the client-specific endpoint if available (backend path: /cliente/{client_id}/crear_solicitud)
+            val clientId = solicitudRequest.id_cliente
+            val response = if (!clientId.isNullOrBlank()) {
+                apiService.crearSolicitudCliente(clientId, solicitudRequest)
+            } else {
+                apiService.crearSolicitud(solicitudRequest)
+            }
             if (response.isSuccessful) {
                 response.body()?.let {
                     Result.success(it)
@@ -22,7 +29,6 @@ class ClientRepository {
             Result.failure(e)
         }
     }
-
     suspend fun getClientSummary(clientId: String): Result<ProcedureResponse> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.callProcedure(
@@ -43,16 +49,27 @@ class ClientRepository {
 
     suspend fun getClientOperations(clientId: String, limit: Int? = null, offset: Int? = null): Result<ProcedureResponse> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.callProcedure(
-                "sp_obtener_operaciones_cliente",
-                mapOf("params" to listOf(clientId, limit, offset))
-            )
-            if (response.isSuccessful) {
-                response.body()?.let {
-                    Result.success(it)
-                } ?: Result.failure(Exception("Response body is null"))
+            // Call dedicated endpoint if available on backend
+            val resp = apiService.getOperacionesCliente(clientId, limit ?: 10, offset ?: 0)
+            if (resp.isSuccessful) {
+                val body = resp.body()
+                val rows = body?.operaciones ?: emptyList()
+                // adapt to ProcedureResponse shape expected by ViewModel
+                val proc = ProcedureResponse(args = emptyList(), results = listOf(rows))
+                Result.success(proc)
             } else {
-                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                // fallback to generic stored-proc call
+                val response = apiService.callProcedure(
+                    "sp_obtener_operaciones_cliente",
+                    mapOf("params" to listOf(clientId, limit, offset))
+                )
+                if (response.isSuccessful) {
+                    response.body()?.let {
+                        Result.success(it)
+                    } ?: Result.failure(Exception("Response body is null"))
+                } else {
+                    Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -61,16 +78,24 @@ class ClientRepository {
 
     suspend fun getClientQuotes(clientId: String, limit: Int? = null, offset: Int? = null): Result<ProcedureResponse> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.callProcedure(
-                "sp_obtener_cotizaciones_cliente",
-                mapOf("params" to listOf(clientId, limit, offset))
-            )
-            if (response.isSuccessful) {
-                response.body()?.let {
-                    Result.success(it)
-                } ?: Result.failure(Exception("Response body is null"))
+            val resp = apiService.getCotizacionesCliente(clientId, limit ?: 10, offset ?: 0)
+            if (resp.isSuccessful) {
+                val body = resp.body()
+                val rows = body?.cotizaciones ?: emptyList()
+                val proc = ProcedureResponse(args = emptyList(), results = listOf(rows))
+                Result.success(proc)
             } else {
-                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                val response = apiService.callProcedure(
+                    "sp_obtener_cotizaciones_cliente",
+                    mapOf("params" to listOf(clientId, limit, offset))
+                )
+                if (response.isSuccessful) {
+                    response.body()?.let {
+                        Result.success(it)
+                    } ?: Result.failure(Exception("Response body is null"))
+                } else {
+                    Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -97,16 +122,24 @@ class ClientRepository {
 
     suspend fun getClientQuoteRequests(clientId: String, limit: Int? = null, offset: Int? = null): Result<ProcedureResponse> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.callProcedure(
-                "sp_obtener_solicitudes_cotizacion_cliente",
-                mapOf("params" to listOf(clientId, limit, offset))
-            )
-            if (response.isSuccessful) {
-                response.body()?.let {
-                    Result.success(it)
-                } ?: Result.failure(Exception("Response body is null"))
+            val resp = apiService.getSolicitudesCliente(clientId, limit ?: 10, offset ?: 0)
+            if (resp.isSuccessful) {
+                val body = resp.body()
+                val rows = body?.solicitudes ?: emptyList()
+                val proc = ProcedureResponse(args = emptyList(), results = listOf(rows))
+                Result.success(proc)
             } else {
-                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                val response = apiService.callProcedure(
+                    "sp_obtener_solicitudes_cotizacion_cliente",
+                    mapOf("params" to listOf(clientId, limit, offset))
+                )
+                if (response.isSuccessful) {
+                    response.body()?.let {
+                        Result.success(it)
+                    } ?: Result.failure(Exception("Response body is null"))
+                } else {
+                    Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -130,32 +163,5 @@ class ClientRepository {
             Result.failure(e)
         }
     }
-    
-    suspend fun getClientInvoices(clientId: String, limit: Int = 10, offset: Int = 0): ApiResponse<List<FacturaExtended>> {
-        return databaseManager.getClientInvoices(clientId, limit, offset)
-    }
-    
-    suspend fun getClientQuoteRequests(clientId: String, limit: Int = 10, offset: Int = 0): ApiResponse<List<SolicitudCotizacionExtended>> {
-        return databaseManager.getClientQuoteRequests(clientId, limit, offset)
-    }
-    
-    suspend fun createQuoteRequest(clientId: String, request: NuevaSolicitudCotizacion): ApiResponse<SolicitudCotizacionExtended> {
-        return databaseManager.createQuoteRequest(clientId, request)
-    }
-    
-    suspend fun getOperationDetail(operationId: String): ApiResponse<OperationDetail> {
-        return databaseManager.getOperationDetail(operationId)
-    }
-    
-    suspend fun getInvoiceDetail(invoiceId: String): ApiResponse<FacturaDetail> {
-        return databaseManager.getInvoiceDetail(invoiceId)
-    }
-    
-    suspend fun getCountries(): ApiResponse<List<Pais>> {
-        return databaseManager.getCountries()
-    }
-    
-    suspend fun getCitiesByCountry(countryId: String): ApiResponse<List<Localizacion>> {
-        return databaseManager.getCitiesByCountry(countryId)
-    }
 }
+ 

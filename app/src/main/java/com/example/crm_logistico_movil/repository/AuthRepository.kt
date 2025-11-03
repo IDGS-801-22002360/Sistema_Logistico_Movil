@@ -55,7 +55,12 @@ class AuthRepository {
                     Result.success(it)
                 } ?: Result.failure(Exception("Response body is null"))
             } else {
-                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+                val err = try { response.errorBody()?.string() } catch (_: Exception) { null }
+                val msg = buildString {
+                    append("Error: ${response.code()} - ${response.message()}")
+                    if (!err.isNullOrBlank()) append(": $err")
+                }
+                Result.failure(Exception(msg))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -90,7 +95,5 @@ class AuthRepository {
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-        return databaseManager.checkRfcExists(rfc)
     }
 }

@@ -100,7 +100,7 @@ class DatabaseManager private constructor() {
                         }
                     )
                     
-                    ApiResponse("OK", message, LoginResponse(user))
+                    ApiResponse("OK", message, LoginResponse("OK", message, listOf(user)))
                 } else {
                     ApiResponse("ERROR", "Error al obtener datos del usuario")
                 }
@@ -162,7 +162,7 @@ class DatabaseManager private constructor() {
                         }
                     )
                     
-                    ApiResponse("OK", message, LoginResponse(user))
+                    ApiResponse("OK", message, LoginResponse("OK", message, listOf(user)))
                 } else {
                     ApiResponse("ERROR", "Error al obtener datos del usuario registrado")
                 }
