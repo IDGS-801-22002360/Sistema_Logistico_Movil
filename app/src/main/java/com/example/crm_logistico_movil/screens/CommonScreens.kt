@@ -17,8 +17,17 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.crm_logistico_movil.components.TopAppBar
 import com.example.crm_logistico_movil.components.SearchTextField
+import com.example.crm_logistico_movil.components.CustomOutlinedTextField
 import com.example.crm_logistico_movil.dummy.DummyData
 import com.example.crm_logistico_movil.models.*
+import com.example.crm_logistico_movil.viewmodels.AuthViewModel
+import com.example.crm_logistico_movil.repository.ClientRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.crm_logistico_movil.navigation.Screen
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 // NOTIFICACIONES SCREEN
 @Composable
@@ -85,18 +94,70 @@ private fun NotificationCard(notification: NotificationItem) {
     }
 }
 
-// OPERATIONS LIST SCREEN
+// OPERATIONS LIST SCREEN - load operations for the logged-in client
 @Composable
 fun OperationsListScreen(navController: NavController) {
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
+
+    val coroutineScope = rememberCoroutineScope()
+    val clientRepository = remember { ClientRepository() }
+
     var searchQuery by remember { mutableStateOf("") }
-    val operations = remember { DummyData.dummyOperationsList }
-    
+    var operations by remember { mutableStateOf<List<com.example.crm_logistico_movil.models.OperationExtended>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // load when user available
+    LaunchedEffect(authState.currentUser?.id_usuario) {
+        val clientId = authState.currentUser?.id_usuario
+        if (clientId != null) {
+            isLoading = true
+            errorMessage = null
+            val res = clientRepository.getClientOperations(clientId, limit = 50)
+            if (res.isSuccess) {
+                // map ProcedureResponse -> List<OperationExtended>
+                val proc = res.getOrNull()
+                val rows = proc?.results?.getOrNull(0) ?: emptyList()
+                val list = rows.map { m ->
+                    com.example.crm_logistico_movil.models.OperationExtended(
+                        id_operacion = m["id_operacion"]?.toString() ?: "",
+                        id_cotizacion = m["id_cotizacion"]?.toString(),
+                        id_cliente = m["id_cliente"]?.toString() ?: "",
+                        id_usuario_operativo = m["id_usuario_operativo"]?.toString() ?: "",
+                        id_proveedor = m["id_proveedor"]?.toString() ?: "",
+                        id_agente = m["id_agente"]?.toString(),
+                        tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
+                        tipo_carga = m["tipo_carga"]?.toString() ?: "",
+                        incoterm = m["incoterm"]?.toString() ?: "",
+                        fecha_inicio_operacion = m["fecha_inicio_operacion"]?.toString() ?: "",
+                        fecha_estimada_arribo = m["fecha_estimada_arribo"]?.toString(),
+                        fecha_estimada_entrega = m["fecha_estimada_entrega"]?.toString(),
+                        fecha_arribo_real = m["fecha_arribo_real"]?.toString(),
+                        fecha_entrega_real = m["fecha_entrega_real"]?.toString(),
+                        estatus = m["estatus"]?.toString() ?: "",
+                        numero_referencia_proveedor = m["numero_referencia_proveedor"]?.toString(),
+                        notas_operacion = m["notas_operacion"]?.toString(),
+                        fecha_creacion = m["fecha_creacion"]?.toString() ?: "",
+                        proveedorNombre = m["proveedor_nombre"]?.toString(),
+                        operativoNombre = m["operativo_nombre"]?.toString(),
+                        operativoApellido = m["operativo_apellido"]?.toString()
+                    )
+                }
+                operations = list
+            } else {
+                errorMessage = res.exceptionOrNull()?.message ?: "Error al cargar operaciones"
+            }
+            isLoading = false
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = "Operaciones",
             onBackClick = { navController.popBackStack() }
         )
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -107,17 +168,25 @@ fun OperationsListScreen(navController: NavController) {
                 onValueChange = { searchQuery = it },
                 placeholder = "Buscar operaciones..."
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(operations) { operation ->
-                    OperationListItem(
-                        operation = operation,
-                        onClick = { /* Navigate to detail */ }
-                    )
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (errorMessage != null) {
+                Text(text = errorMessage ?: "", color = MaterialTheme.colorScheme.error)
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(operations) { operation ->
+                        OperationListItem(
+                            operation = operation,
+                            onClick = { navController.navigate(Screen.OperationDetail.createRoute(operation.id_operacion)) }
+                        )
+                    }
                 }
             }
         }
@@ -125,7 +194,7 @@ fun OperationsListScreen(navController: NavController) {
 }
 
 @Composable
-private fun OperationListItem(operation: Operation, onClick: () -> Unit) {
+private fun OperationListItem(operation: com.example.crm_logistico_movil.models.OperationExtended, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
@@ -137,14 +206,14 @@ private fun OperationListItem(operation: Operation, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = when (operation.tipo_servicio) {
-                    TipoServicio.MARITIMO -> Icons.Default.DirectionsBoat
-                    TipoServicio.AEREO -> Icons.Default.Flight
-                    TipoServicio.TERRESTRE -> Icons.Default.LocalShipping
+                imageVector = when (operation.tipo_servicio.uppercase()) {
+                    "MARITIMO" -> Icons.Default.DirectionsBoat
+                    "AEREO" -> Icons.Default.Flight
+                    "TERRESTRE" -> Icons.Default.LocalShipping
                     else -> Icons.Default.LocalShipping
                 },
                 contentDescription = null,
-                tint = getStatusColor(operation.estatus),
+                tint = getStatusColor(operation.estatus ?: ""),
                 modifier = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -564,7 +633,13 @@ private fun getStatusText(status: EstatusOperacion): String {
 // STUB SCREENS - Solo placeholders con mensaje
 @Composable
 fun OperationDetailScreen(navController: NavController, operationId: String?) {
-    GenericScreen(navController, "Detalle de Operación", "Operación: $operationId")
+    // Delegate to the client-specific detailed screen when an operationId is provided.
+    if (operationId == null) {
+        GenericScreen(navController, "Detalle de Operación", "Operación: $operationId")
+    } else {
+        // Call the richer implementation living in the client package
+        com.example.crm_logistico_movil.client.OperationDetailScreen(navController = navController, operationId = operationId)
+    }
 }
 
 @Composable
@@ -582,14 +657,202 @@ fun QuoteDetailScreen(navController: NavController, quoteId: String?) {
     GenericScreen(navController, "Detalle de Cotización", "Cotización: $quoteId")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateQuoteRequestScreen(navController: NavController) {
-    GenericScreen(navController, "Solicitar Cotización", "Formulario de solicitud de cotización")
+    val authViewModel: com.example.crm_logistico_movil.viewmodels.AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.ClientRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    var tipoServicio by remember { mutableStateOf("") }
+    var tipoCarga by remember { mutableStateOf("") }
+    var origenCiudad by remember { mutableStateOf("") }
+    var origenPais by remember { mutableStateOf("") }
+    var destinoCiudad by remember { mutableStateOf("") }
+    var destinoPais by remember { mutableStateOf("") }
+    var descripcion by remember { mutableStateOf("") }
+    var valor by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    Scaffold(
+        topBar = { TopAppBar(title = "Solicitar Cotización", onBackClick = { navController.popBackStack() }) }
+    ) { padding ->
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("Nuevo pedido de cotización", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Completa los datos para que podamos cotizar tu envío", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            // Form fields in two columns for compactness on larger screens
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CustomOutlinedTextField(value = tipoServicio, onValueChange = { tipoServicio = it }, label = "Tipo de servicio", leadingIcon = Icons.Default.LocalShipping)
+                CustomOutlinedTextField(value = tipoCarga, onValueChange = { tipoCarga = it }, label = "Tipo de carga", leadingIcon = Icons.Default.Inventory)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        CustomOutlinedTextField(value = origenCiudad, onValueChange = { origenCiudad = it }, label = "Origen - Ciudad", leadingIcon = Icons.Default.Place)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        CustomOutlinedTextField(value = origenPais, onValueChange = { origenPais = it }, label = "Origen - País", leadingIcon = Icons.Default.Flag)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        CustomOutlinedTextField(value = destinoCiudad, onValueChange = { destinoCiudad = it }, label = "Destino - Ciudad", leadingIcon = Icons.Default.Place)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        CustomOutlinedTextField(value = destinoPais, onValueChange = { destinoPais = it }, label = "Destino - País", leadingIcon = Icons.Default.Flag)
+                    }
+                }
+
+                CustomOutlinedTextField(value = descripcion, onValueChange = { descripcion = it }, label = "Descripción", leadingIcon = Icons.Default.Description, maxLines = 4)
+                CustomOutlinedTextField(value = valor, onValueChange = { valor = it }, label = "Valor estimado", leadingIcon = Icons.Default.AttachMoney, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    val clientId = authState.currentUser?.id_usuario
+                    if (clientId != null) {
+                        isLoading = true
+                        message = null
+                        val req = com.example.crm_logistico_movil.models.SolicitudRequest(
+                            id_cliente = clientId,
+                            tipo_servicio = tipoServicio,
+                            tipo_carga = tipoCarga,
+                            origen_ciudad = origenCiudad,
+                            origen_pais = origenPais,
+                            destino_ciudad = destinoCiudad,
+                            destino_pais = destinoPais,
+                            descripcion_mercancia = descripcion,
+                            valor_estimado_mercancia = valor.toDoubleOrNull()
+                        )
+                        coroutineScope.launch {
+                            val res = clientRepository.createSolicitud(req)
+                            isLoading = false
+                            if (res.isSuccess) {
+                                message = "Solicitud creada correctamente"
+                                // clear form
+                                tipoServicio = ""; tipoCarga = ""; origenCiudad = ""; origenPais = ""; destinoCiudad = ""; destinoPais = ""; descripcion = ""; valor = ""
+                            } else {
+                                message = res.exceptionOrNull()?.message ?: "Error al crear solicitud"
+                            }
+                        }
+                    } else {
+                        message = "Usuario no autenticado"
+                    }
+                },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Text(if (isLoading) "Enviando..." else "Enviar solicitud")
+            }
+
+            message?.let { Text(text = it, color = if (it.contains("correctamente")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error) }
+        }
+    }
 }
 
 @Composable
 fun QuoteRequestsScreen(navController: NavController) {
-    GenericScreen(navController, "Solicitudes de Cotización", "Lista de solicitudes pendientes")
+    val authViewModel: com.example.crm_logistico_movil.viewmodels.AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
+    val repo = remember { com.example.crm_logistico_movil.repository.ClientRepository() }
+
+    var solicitudes by remember { mutableStateOf<List<com.example.crm_logistico_movil.models.SolicitudCotizacionExtended>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(authState.currentUser?.id_usuario) {
+        val clientId = authState.currentUser?.id_usuario
+        if (clientId != null) {
+            loading = true
+            val res = repo.getClientQuoteRequests(clientId, limit = 50)
+            if (res.isSuccess) {
+                val proc = res.getOrNull()
+                val rows = proc?.results?.getOrNull(0) ?: emptyList()
+                solicitudes = rows.map { m ->
+                    com.example.crm_logistico_movil.models.SolicitudCotizacionExtended(
+                        id_solicitud = m["id_solicitud"]?.toString() ?: "",
+                        id_cliente = m["id_cliente"]?.toString() ?: "",
+                        tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
+                        tipo_carga = m["tipo_carga"]?.toString() ?: "",
+                        origen_ciudad = m["origen_ciudad"]?.toString() ?: "",
+                        origen_pais = m["origen_pais"]?.toString() ?: "",
+                        destino_ciudad = m["destino_ciudad"]?.toString() ?: "",
+                        destino_pais = m["destino_pais"]?.toString() ?: "",
+                        fecha_solicitud = m["fecha_solicitud"]?.toString() ?: "",
+                        descripcion_mercancia = m["descripcion_mercancia"]?.toString(),
+                        valor_estimado_mercancia = m["valor_estimado_mercancia"]?.toString()?.toDoubleOrNull(),
+                        estatus = m["estatus"]?.toString() ?: ""
+                    )
+                }
+            } else {
+                error = res.exceptionOrNull()?.message ?: "Error al cargar solicitudes"
+            }
+            loading = false
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(title = "Solicitudes de Cotización", onBackClick = { navController.popBackStack() })
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            if (loading) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else if (error != null) {
+                Text(text = error ?: "", color = MaterialTheme.colorScheme.error)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(solicitudes) { s ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                                // left color/status chip
+                                Surface(
+                                    modifier = Modifier
+                                        .size(width = 10.dp, height = 60.dp)
+                                        .padding(end = 8.dp),
+                                    color = getStatusColor(s.estatus),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {}
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = s.id_solicitud, fontWeight = FontWeight.Bold)
+                                    Text(text = "${s.tipo_servicio} - ${s.tipo_carga}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(text = s.descripcion_mercancia ?: "-", maxLines = 3, style = MaterialTheme.typography.bodyMedium)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(color = getStatusColor(s.estatus), shape = RoundedCornerShape(8.dp)) {
+                                            Text(text = getStatusText(s.estatus), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Color.White)
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = "Cliente: ${s.id_cliente.takeUnless { it.isBlank() } ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -714,4 +977,32 @@ private fun GenericScreen(navController: NavController, title: String, content: 
             )
         }
     }
+}
+
+// Overloads that accept a string representation (from backend) and map to the enum
+private fun parseEstatusOperacion(status: String?): EstatusOperacion {
+    if (status == null) return EstatusOperacion.CANCELADO
+    return when (status.uppercase().replace(" ", "_").replace("-", "_").replace("Á", "A")) {
+        "EN_TRANSITO", "ENTRÁNSITO", "EN_TRÁNSITO", "EN-TRANSITO", "EN TRÁNSITO" -> EstatusOperacion.EN_TRANSITO
+        "ENTREGADO" -> EstatusOperacion.ENTREGADO
+        "EN_ADUANA", "ENADUANA", "EN ADUANA" -> EstatusOperacion.EN_ADUANA
+        "PENDIENTE_DOCUMENTOS", "PENDIENTE DOCUMENTOS", "PENDIENTE_DOCUMENTO", "PENDIENTE" -> EstatusOperacion.PENDIENTE_DOCUMENTOS
+        "CANCELADO", "CANCELADA" -> EstatusOperacion.CANCELADO
+        else -> {
+            // Try matching by literal enum name
+            try {
+                EstatusOperacion.valueOf(status.uppercase())
+            } catch (e: Exception) {
+                EstatusOperacion.CANCELADO
+            }
+        }
+    }
+}
+
+private fun getStatusColor(status: String?): Color {
+    return getStatusColor(parseEstatusOperacion(status))
+}
+
+private fun getStatusText(status: String?): String {
+    return getStatusText(parseEstatusOperacion(status))
 }

@@ -35,12 +35,109 @@ fun OperationDetailScreen(
         scope.launch {
             isLoading = true
             try {
-                val result = clientRepository.getOperationDetail(operationId)
-                // ApiResponse<T> has status/message/data — use status to determine success
-                if (result.status.equals("OK", ignoreCase = true)) {
-                    operationDetail = result.data
+                val res = clientRepository.getOperationDetail(operationId)
+                if (res.isSuccess) {
+                    val proc = res.getOrNull()
+                    if (proc == null) {
+                        errorMessage = "Respuesta vacía del servidor"
+                    } else {
+                        val results = proc.results
+                        if (results.isEmpty()) {
+                            errorMessage = "No se recibieron resultados"
+                        } else {
+                            // El procedimiento devuelve varios resultsets:
+                            // 0 -> operación (fila única)
+                            // 1 -> tracking (lista)
+                            // 2 -> incidencias (lista)
+                            // 3 -> demoras (lista)
+                            val opList = results.getOrNull(0) ?: emptyList()
+                            if (opList.isEmpty()) {
+                                errorMessage = "Operación no encontrada"
+                            } else {
+                                val opMap = opList[0]
+
+                                fun Any?.asStr(): String? = this?.toString()
+                                fun Any?.asDoubleOrNull(): Double? = when (this) {
+                                    is Number -> this.toDouble()
+                                    is String -> this.toDoubleOrNull()
+                                    else -> null
+                                }
+
+                                val operacion = OperationExtended(
+                                    id_operacion = opMap["id_operacion"]?.toString() ?: "",
+                                    id_cotizacion = opMap["id_cotizacion"]?.toString(),
+                                    id_cliente = opMap["id_cliente"]?.toString() ?: "",
+                                    id_usuario_operativo = opMap["id_usuario_operativo"]?.toString() ?: "",
+                                    id_proveedor = opMap["id_proveedor"]?.toString() ?: "",
+                                    id_agente = opMap["id_agente"]?.toString(),
+                                    tipo_servicio = opMap["tipo_servicio"]?.toString() ?: "",
+                                    tipo_carga = opMap["tipo_carga"]?.toString() ?: "",
+                                    incoterm = opMap["incoterm"]?.toString() ?: "",
+                                    fecha_inicio_operacion = opMap["fecha_inicio_operacion"]?.toString() ?: "",
+                                    fecha_estimada_arribo = opMap["fecha_estimada_arribo"]?.toString(),
+                                    fecha_estimada_entrega = opMap["fecha_estimada_entrega"]?.toString(),
+                                    fecha_arribo_real = opMap["fecha_arribo_real"]?.toString(),
+                                    fecha_entrega_real = opMap["fecha_entrega_real"]?.toString(),
+                                    estatus = opMap["estatus"]?.toString() ?: "",
+                                    numero_referencia_proveedor = opMap["numero_referencia_proveedor"]?.toString(),
+                                    notas_operacion = opMap["notas_operacion"]?.toString(),
+                                    fecha_creacion = opMap["fecha_creacion"]?.toString() ?: "",
+                                    proveedorNombre = opMap["proveedor_nombre"]?.toString(),
+                                    operativoNombre = opMap["operativo_nombre"]?.toString(),
+                                    operativoApellido = opMap["operativo_apellido"]?.toString()
+                                )
+
+                                val trackingList = (results.getOrNull(1) ?: emptyList()).map { m ->
+                                    TrackingInfo(
+                                        id_tracking = m["id_tracking"]?.toString() ?: "",
+                                        fecha_hora_actualizacion = m["fecha_hora_actualizacion"]?.toString() ?: "",
+                                        ubicacion_actual = m["ubicacion_actual"]?.toString(),
+                                        estatus_seguimiento = m["estatus_seguimiento"]?.toString() ?: "",
+                                        referencia_transportista = m["referencia_transportista"]?.toString(),
+                                        nombre_transportista = m["nombre_transportista"]?.toString(),
+                                        notas_tracking = m["notas_tracking"]?.toString()
+                                    )
+                                }
+
+                                val incidenciasList = (results.getOrNull(2) ?: emptyList()).map { m ->
+                                    IncidenciaInfo(
+                                        id_incidencia = m["id_incidencia"]?.toString() ?: "",
+                                        fecha_hora_incidencia = m["fecha_hora_incidencia"]?.toString() ?: "",
+                                        descripcion_incidencia = m["descripcion_incidencia"]?.toString() ?: "",
+                                        tipo_incidencia = m["tipo_incidencia"]?.toString() ?: "",
+                                        estatus = m["estatus"]?.toString() ?: "",
+                                        fecha_resolucion = m["fecha_resolucion"]?.toString(),
+                                        comentarios_resolucion = m["comentarios_resolucion"]?.toString()
+                                    )
+                                }
+
+                                val demorasList = (results.getOrNull(3) ?: emptyList()).map { m ->
+                                    DemoraInfo(
+                                        id_demora = m["id_demora"]?.toString() ?: "",
+                                        fecha_hora_demora = m["fecha_hora_demora"]?.toString() ?: "",
+                                        descripcion_demora = m["descripcion_demora"]?.toString(),
+                                        tipo_demora = m["tipo_demora"]?.toString() ?: "",
+                                        costo_asociado = m["costo_asociado"]?.let { v -> when (v) {
+                                            is Number -> v.toDouble()
+                                            is String -> v.toDoubleOrNull() ?: 0.0
+                                            else -> 0.0
+                                        } } ?: 0.0,
+                                        moneda = m["moneda"]?.toString()
+                                    )
+                                }
+
+                                operationDetail = OperationDetail(
+                                    operacion = operacion,
+                                    tracking = trackingList,
+                                    incidencias = incidenciasList,
+                                    demoras = demorasList
+                                )
+                            }
+                        }
+                    }
                 } else {
-                    errorMessage = result.message
+                    // Error en la llamada a la API
+                    errorMessage = res.exceptionOrNull()?.message ?: "Error al obtener detalle"
                 }
             } catch (e: Exception) {
                 errorMessage = "Error al cargar detalle: ${e.message}"

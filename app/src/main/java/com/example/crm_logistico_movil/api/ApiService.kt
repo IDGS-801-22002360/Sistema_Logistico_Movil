@@ -3,8 +3,9 @@ package com.example.crm_logistico_movil.api
 import com.example.crm_logistico_movil.models.*
 import retrofit2.Response
 import retrofit2.http.*
+import kotlin.jvm.JvmSuppressWildcards
 
-interface ApiService {
+interface ApiService1 {
     @POST("login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
     
@@ -20,6 +21,6 @@ interface ApiService {
     @POST("call/{procName}")
     suspend fun callProcedure(
         @Path("procName") procName: String,
-        @Body params: Map<String, Any>
+        @Body params: Map<String, @JvmSuppressWildcards Any?>
     ): Response<ProcedureResponse>
 }

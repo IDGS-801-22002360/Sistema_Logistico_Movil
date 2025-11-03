@@ -1,5 +1,7 @@
 package com.example.crm_logistico_movil.models
 
+import kotlinx.datetime.Instant
+
 // Request Models
 data class LoginRequest(
     val email: String,
@@ -67,6 +69,19 @@ data class ProcedureResponse(
     val results: List<List<Map<String, Any>>>
 )
 
+// Responses for dedicated client endpoints
+data class OperacionesListResponse(
+    val operaciones: List<Map<String, Any>>
+)
+
+data class CotizacionesListResponse(
+    val cotizaciones: List<Map<String, Any>>
+)
+
+data class SolicitudesListResponse(
+    val solicitudes: List<Map<String, Any>>
+)
+
 // Data Models
 data class User(
     val id_usuario: String,
@@ -75,7 +90,7 @@ data class User(
     val email: String,
     val rol: String,
     val activo: Boolean,
-    val fecha_creacion: String,
+    val fecha_creacion: Instant,
     val nombre_empresa: String? = null,
     val rfc: String? = null,
     val telefono: String? = null,
@@ -97,4 +112,18 @@ data class Solicitud(
     val descripcion_mercancia: String?,
     val valor_estimado_mercancia: Double?,
     val estatus: String
+)
+
+// Backwards-compatible RegisterRequest used by ViewModel
+data class RegisterRequest(
+    val nombre: String,
+    val apellido: String,
+    val email: String,
+    val password: String,
+    val nombreEmpresa: String,
+    val rfc: String,
+    val direccion: String? = null,
+    val ciudad: String? = null,
+    val pais: String? = null,
+    val telefono: String? = null
 )
