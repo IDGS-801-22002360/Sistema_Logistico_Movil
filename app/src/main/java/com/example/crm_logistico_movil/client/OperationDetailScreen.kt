@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.crm_logistico_movil.components.TopAppBar
+import com.example.crm_logistico_movil.components.DetailRow
 import com.example.crm_logistico_movil.models.*
 import com.example.crm_logistico_movil.repository.ClientRepository
 import kotlinx.coroutines.launch
@@ -433,39 +434,7 @@ private fun OperationDetailContent(
     }
 }
 
-@Composable
-private fun DetailRow(
-    label: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
+// DetailRow moved to com.example.crm_logistico_movil.components.DetailRow
 
 private fun getStatusColor(status: String): Color {
     return when (status) {

@@ -1,6 +1,7 @@
 package com.example.crm_logistico_movil.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -266,16 +267,18 @@ fun QuotesListScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(quotes) { quote ->
-                QuoteListCard(quote)
+                QuoteListCard(quote = quote, onClick = { navController.navigate(Screen.QuoteDetail.createRoute(quote.id)) })
             }
         }
     }
 }
 
 @Composable
-private fun QuoteListCard(quote: QuoteItem) {
+private fun QuoteListCard(quote: QuoteItem, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -818,7 +821,9 @@ fun QuoteRequestsScreen(navController: NavController) {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(solicitudes) { s ->
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { navController.navigate(com.example.crm_logistico_movil.navigation.Screen.QuoteDetail.createRoute(s.id_solicitud)) },
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {

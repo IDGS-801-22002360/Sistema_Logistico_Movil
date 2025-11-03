@@ -66,7 +66,10 @@ data class SolicitudResponse(
 
 data class ProcedureResponse(
     val args: List<Any?>,
-    val results: List<List<Map<String, Any>>>
+    val results: List<List<Map<String, Any>>>,
+    val status: String = "",
+    val cotizaciones: List<Map<String, Any>>? = null,
+    val solicitudes: List<Map<String, Any>>? = null
 )
 
 // Responses for dedicated client endpoints

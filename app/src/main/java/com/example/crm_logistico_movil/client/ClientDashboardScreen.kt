@@ -21,16 +21,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.crm_logistico_movil.models.* // <-- Aquí se importa ClientSummary de models
 import com.example.crm_logistico_movil.R
 import com.example.crm_logistico_movil.components.TopAppBar
-import com.example.crm_logistico_movil.dummy.DummyData // Considera si DummyData es realmente necesario aquí o solo para previews
-import com.example.crm_logistico_movil.models.* // IMPORTANTE: Asegúrate de que tus modelos están bien definidos aquí
+import com.example.crm_logistico_movil.models.*
 import com.example.crm_logistico_movil.navigation.Screen
 import com.example.crm_logistico_movil.ui.theme.CRM_Logistico_MovilTheme
+import com.example.crm_logistico_movil.utils.getStatusColor
+import com.example.crm_logistico_movil.utils.getStatusText
 import com.example.crm_logistico_movil.viewmodels.AuthViewModel
 import com.example.crm_logistico_movil.viewmodels.ClientDashboardViewModel
-import com.example.crm_logistico_movil.models.ClientSummary
 
 // ============================================================================
 // ASUNCIONES DE CLASES DE MODELO: DEBES TENER ESTAS DEFINICIONES EN models.kt
@@ -488,28 +487,7 @@ private fun OperationItem(
     }
 }
 
-@Composable
-private fun getStatusColor(status: String): Color {
-    return when (status.uppercase()) {
-        "EN_TRANSITO", "EN_PROCESO" -> Color(0xFF1976D2)
-        "ENTREGADO", "COMPLETADO" -> Color(0xFF388E3C)
-        "EN_ADUANA" -> Color(0xFFF57C00)
-        "PENDIENTE_DOCUMENTOS" -> Color(0xFFE91E63)
-        "CANCELADO" -> Color(0xFF757575)
-        else -> MaterialTheme.colorScheme.primary
-    }
-}
-
-private fun getStatusText(status: String): String {
-    return when (status.uppercase()) {
-        "EN_TRANSITO" -> "En Tránsito"
-        "ENTREGADO" -> "Entregado"
-        "EN_ADUANA" -> "En Aduana"
-        "PENDIENTE_DOCUMENTOS" -> "Pendiente Documentos"
-        "CANCELADO" -> "Cancelado"
-        else -> status.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-    }
-}
+// Status utils are now in com.example.crm_logistico_movil.utils.StatusUtils
 
 private fun formatCurrency(amount: Double): String {
     return "$${String.format("%,.2f", amount)}"
