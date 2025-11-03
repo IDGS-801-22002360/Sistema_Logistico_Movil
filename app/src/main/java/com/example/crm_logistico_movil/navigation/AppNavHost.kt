@@ -63,7 +63,8 @@ fun AppNavHost(navController: NavHostController) {
         }
         composable(Screen.QuoteDetail.route) { backStackEntry ->
             val quoteId = backStackEntry.arguments?.getString("quoteId")
-            QuoteDetailScreen(navController = navController, quoteId = quoteId)
+            // Use the richer client implementation when available
+            com.example.crm_logistico_movil.client.QuoteDetailScreen(navController = navController, quoteId = quoteId ?: "")
         }
         composable(Screen.CreateQuoteRequest.route) {
             CreateQuoteRequestScreen(navController = navController)
