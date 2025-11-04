@@ -139,6 +139,10 @@ fun AppNavHost(navController: NavHostController) {
         composable(Screen.Profile.route) {
             ProfileScreen(navController = navController)
         }
+        composable(Screen.EditProfile.route) {
+            // Edit profile screen uses the common screens module
+            com.example.crm_logistico_movil.screens.EditProfileScreen(navController = navController)
+        }
         composable(Screen.Settings.route) {
             SettingsScreen(navController = navController)
         }
