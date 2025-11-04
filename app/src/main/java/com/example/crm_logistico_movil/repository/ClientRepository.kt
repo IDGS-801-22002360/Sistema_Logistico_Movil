@@ -146,6 +146,33 @@ class ClientRepository {
         }
     }
 
+    suspend fun getClientInfo(clientId: String): Result<Map<String, Any>?> = withContext(Dispatchers.IO) {
+        try {
+            val resp = apiService.getClienteInfo(clientId)
+            if (resp.isSuccessful) {
+                val body = resp.body()
+                Result.success(body?.cliente)
+            } else {
+                Result.failure(Exception("Error: ${resp.code()} - ${resp.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun editClient(clientId: String, payload: Map<String, Any?>): Result<com.example.crm_logistico_movil.models.EditClientResponse> = withContext(Dispatchers.IO) {
+        try {
+            val resp = apiService.editarCliente(clientId, payload)
+            if (resp.isSuccessful) {
+                resp.body()?.let { Result.success(it) } ?: Result.failure(Exception("Response body is null"))
+            } else {
+                Result.failure(Exception("Error: ${resp.code()} - ${resp.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getOperationDetail(operationId: String): Result<ProcedureResponse> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.callProcedure(

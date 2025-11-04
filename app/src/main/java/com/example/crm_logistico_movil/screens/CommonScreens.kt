@@ -28,6 +28,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import com.example.crm_logistico_movil.navigation.Screen
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.input.KeyboardType
 
 // NOTIFICACIONES SCREEN
@@ -518,43 +520,191 @@ fun ProfileScreen(navController: NavController) {
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(80.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Juan Pérez",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "juan.perez@empresa.com",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = "Cliente",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                                        val authViewModel: AuthViewModel = viewModel()
+                                        val authState by authViewModel.uiState.collectAsState()
+                                        val clientRepository = remember { ClientRepository() }
+                                        var clienteInfo by remember { mutableStateOf<Map<String, Any>?>(null) }
+                                        var loadingInfo by remember { mutableStateOf(false) }
+
+                                        LaunchedEffect(authState.currentUser?.id_usuario) {
+                                            val clientId = authState.currentUser?.id_usuario
+                                            if (clientId != null) {
+                                                loadingInfo = true
+                                                val res = clientRepository.getClientInfo(clientId)
+                                                if (res.isSuccess) {
+                                                    clienteInfo = res.getOrNull()
+                                                }
+                                                loadingInfo = false
+                                            }
+                                        }
+
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(80.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        val displayName = clienteInfo?.get("nombre_usuario")?.toString()
+                                            ?: clienteInfo?.get("nombre")?.toString()
+                                            ?: authState.currentUser?.nombre
+                                            ?: "Usuario"
+                                        val displayEmail = clienteInfo?.get("email_usuario")?.toString()
+                                            ?: authState.currentUser?.email
+                                            ?: ""
+
+                                        Text(
+                                            text = displayName,
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = displayEmail,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            text = "Cliente",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
                     }
                 }
             }
             
             item {
-                ProfileOption("Editar Información", Icons.Default.Edit) { }
-            }
-            item {
-                ProfileOption("Configuración", Icons.Default.Settings) { }
-            }
-            item {
-                ProfileOption("Notificaciones", Icons.Default.Notifications) { }
+                ProfileOption("Editar Información", Icons.Default.Edit) { navController.navigate(com.example.crm_logistico_movil.navigation.Screen.EditProfile.route) }
             }
             item {
                 ProfileOption("Cerrar Sesión", Icons.Default.Logout) { }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditProfileScreen(navController: NavController) {
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
+    val clientRepository = remember { ClientRepository() }
+    val coroutineScope = rememberCoroutineScope()
+
+    var isLoading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    // form fields
+    var nombreEmpresa by remember { mutableStateOf("") }
+    var rfc by remember { mutableStateOf("") }
+    var direccion by remember { mutableStateOf("") }
+    var ciudad by remember { mutableStateOf("") }
+    var pais by remember { mutableStateOf("") }
+    var telefono by remember { mutableStateOf("") }
+    var emailContacto by remember { mutableStateOf("") }
+    var contactoNombre by remember { mutableStateOf("") }
+    var contactoPuesto by remember { mutableStateOf("") }
+    var nombreUsuario by remember { mutableStateOf("") }
+    var apellidoUsuario by remember { mutableStateOf("") }
+    var emailUsuario by remember { mutableStateOf("") }
+
+    // load current info
+    LaunchedEffect(authState.currentUser?.id_usuario) {
+        val clientId = authState.currentUser?.id_usuario
+        if (clientId != null) {
+            isLoading = true
+            val res = clientRepository.getClientInfo(clientId)
+            if (res.isSuccess) {
+                val map = res.getOrNull()
+                // fill fields from map with safe casts
+                nombreEmpresa = map?.get("nombre_empresa")?.toString() ?: nombreEmpresa
+                rfc = map?.get("rfc")?.toString() ?: rfc
+                direccion = map?.get("direccion")?.toString() ?: direccion
+                ciudad = map?.get("ciudad")?.toString() ?: ciudad
+                pais = map?.get("pais")?.toString() ?: pais
+                telefono = map?.get("telefono")?.toString() ?: telefono
+                emailContacto = map?.get("email_contacto")?.toString() ?: emailContacto
+                contactoNombre = map?.get("contacto_nombre")?.toString() ?: contactoNombre
+                contactoPuesto = map?.get("contacto_puesto")?.toString() ?: contactoPuesto
+                nombreUsuario = map?.get("nombre_usuario")?.toString() ?: authState.currentUser?.nombre ?: nombreUsuario
+                apellidoUsuario = map?.get("apellido_usuario")?.toString() ?: authState.currentUser?.apellido ?: apellidoUsuario
+                emailUsuario = map?.get("email_usuario")?.toString() ?: authState.currentUser?.email ?: emailUsuario
+            } else {
+                message = res.exceptionOrNull()?.message ?: "Error al cargar datos"
+            }
+            isLoading = false
+        }
+    }
+
+    Scaffold(topBar = { TopAppBar(title = "Editar Información", onBackClick = { navController.popBackStack() }) }) { padding ->
+        val scrollState = rememberScrollState()
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(padding)
+            .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                CustomOutlinedTextField(value = nombreEmpresa, onValueChange = { nombreEmpresa = it }, label = "Nombre de la Empresa")
+                CustomOutlinedTextField(value = rfc, onValueChange = { rfc = it }, label = "RFC")
+                CustomOutlinedTextField(value = direccion, onValueChange = { direccion = it }, label = "Dirección")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.weight(1f)) { CustomOutlinedTextField(value = ciudad, onValueChange = { ciudad = it }, label = "Ciudad") }
+                    Column(modifier = Modifier.weight(1f)) { CustomOutlinedTextField(value = pais, onValueChange = { pais = it }, label = "País") }
+                }
+                CustomOutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = "Teléfono", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                CustomOutlinedTextField(value = emailContacto, onValueChange = { emailContacto = it }, label = "Email de contacto", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
+                CustomOutlinedTextField(value = contactoNombre, onValueChange = { contactoNombre = it }, label = "Nombre del contacto")
+                CustomOutlinedTextField(value = contactoPuesto, onValueChange = { contactoPuesto = it }, label = "Puesto del contacto")
+
+                Divider()
+                Text("Usuario relacionado", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                CustomOutlinedTextField(value = nombreUsuario, onValueChange = { nombreUsuario = it }, label = "Nombre")
+                CustomOutlinedTextField(value = apellidoUsuario, onValueChange = { apellidoUsuario = it }, label = "Apellido")
+                CustomOutlinedTextField(value = emailUsuario, onValueChange = { emailUsuario = it }, label = "Email", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = {
+                    val clientId = authState.currentUser?.id_usuario
+                    if (clientId != null) {
+                        isLoading = true
+                        message = null
+                        val payload = mapOf<String, Any?>(
+                            "nombre_empresa" to nombreEmpresa,
+                            "rfc" to rfc,
+                            "direccion" to direccion,
+                            "ciudad" to ciudad,
+                            "pais" to pais,
+                            "telefono" to telefono,
+                            "email_contacto" to emailContacto,
+                            "contacto_nombre" to contactoNombre,
+                            "contacto_puesto" to contactoPuesto,
+                            "nombre_usuario" to nombreUsuario,
+                            "apellido_usuario" to apellidoUsuario,
+                            "email_usuario" to emailUsuario
+                        )
+                        coroutineScope.launch {
+                            val res = clientRepository.editClient(clientId, payload)
+                            isLoading = false
+                            if (res.isSuccess) {
+                                message = res.getOrNull()?.message ?: "Guardado"
+                                // after saving, go back
+                                navController.popBackStack()
+                            } else {
+                                message = res.exceptionOrNull()?.message ?: "Error al guardar"
+                            }
+                        }
+                    } else {
+                        message = "Usuario no autenticado"
+                    }
+                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+                    Text("Guardar")
+                }
+
+                message?.let { Text(text = it, color = if (it.contains("correcto") || it.contains("Guardado")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error) }
             }
         }
     }

@@ -102,6 +102,17 @@ data class User(
     val pais: String? = null
 )
 
+// Response for combined cliente+usuario endpoint
+data class ClienteInfoResponse(
+    val cliente: Map<String, Any>? = null
+)
+
+// Response for editar cliente endpoint
+data class EditClientResponse(
+    val status: String,
+    val message: String
+)
+
 data class Solicitud(
     val id_solicitud: String,
     val id_cliente: String,

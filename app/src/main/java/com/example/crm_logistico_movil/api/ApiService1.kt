@@ -46,6 +46,17 @@ interface ApiService {
         @Query("offset") offset: Int = 0
     ): Response<SolicitudesListResponse>
 
+    @GET("cliente/{client_id}/info")
+    suspend fun getClienteInfo(
+        @Path("client_id") clientId: String
+    ): Response<com.example.crm_logistico_movil.models.ClienteInfoResponse>
+
+    @PUT("cliente/{client_id}")
+    suspend fun editarCliente(
+        @Path("client_id") clientId: String,
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<com.example.crm_logistico_movil.models.EditClientResponse>
+
     @POST("call/{procName}")
     suspend fun callProcedure(
         @Path("procName") procName: String,
