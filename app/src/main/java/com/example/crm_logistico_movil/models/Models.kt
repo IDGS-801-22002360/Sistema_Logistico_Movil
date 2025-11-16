@@ -141,3 +141,51 @@ data class RegisterRequest(
     val pais: String? = null,
     val telefono: String? = null
 )
+
+
+// Facturas Models
+
+data class FacturasListResponse(
+
+    val facturas: List<FacturaCliente>? = null
+
+)
+
+
+
+data class FacturaCliente(
+
+    val id_factura_cliente: String,
+
+    val id_cliente: String,
+
+    val id_operacion: String? = null,
+
+    val id_cotizacion: String? = null,
+
+    val numero_factura: String,
+
+    val fecha_emision: String, // ISO format string for datetime
+
+    val fecha_vencimiento: String, // ISO format string for date
+
+    val monto_total: Double,
+
+    val monto_pagado: Double,
+
+    val moneda: String,
+
+    val estatus: String,
+
+    val observaciones: String? = null,
+
+    val fecha_creacion: String, // ISO format string for datetime
+    val cotización_tipo_servicio: String? = null,
+    val cotización_tipo_carga: String? = null,
+    val cotización_incoterm: String? = null,
+    val descripción_mercancia: String? = null,
+    val operación_tipo_servicio: String? = null,
+    val fecha_inicio_operacion: String? = null, // ISO format string for datetime
+    val fecha_estimada_entrega: String? = null
+
+)
