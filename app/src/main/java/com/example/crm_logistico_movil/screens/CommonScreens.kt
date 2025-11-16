@@ -1,9 +1,15 @@
 package com.example.crm_logistico_movil.screens
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.crm_logistico_movil.components.TopAppBar
@@ -24,12 +31,15 @@ import com.example.crm_logistico_movil.models.*
 import com.example.crm_logistico_movil.models.FacturaCliente
 import com.example.crm_logistico_movil.models.FacturaClienteTmp
 import com.example.crm_logistico_movil.viewmodels.AuthViewModel
+import com.example.crm_logistico_movil.viewmodels.ChatbotViewModel
 import com.example.crm_logistico_movil.repository.ClientRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import com.example.crm_logistico_movil.navigation.Screen
 import androidx.compose.foundation.text.KeyboardOptions
+import java.text.SimpleDateFormat
+import java.util.*
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.input.KeyboardType
@@ -467,50 +477,353 @@ private fun InvoiceListCard(factura: FacturaClienteTmp, onClick: () -> Unit = {}
     }
 }
 
-// SUPPORT SCREEN
+// SUPPORT SCREEN - CHATBOT
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupportScreen(navController: NavController) {
+    val chatbotViewModel = remember { ChatbotViewModel() }
+    val messages by chatbotViewModel.messages.collectAsState()
+    val isTyping by chatbotViewModel.isTyping.collectAsState()
+    val chatContext by chatbotViewModel.chatContext.collectAsState()
+    val suggestedActions by chatbotViewModel.suggestedActions.collectAsState()
+
+    var messageText by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Auto scroll al último mensaje
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            scope.launch {
+                listState.animateScrollToItem(messages.size - 1)
+            }
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
+        // Header del chat
         TopAppBar(
-            title = "Soporte",
+            title = "Soporte - Asistente Virtual",
             onBackClick = { navController.popBackStack() }
         )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // Estado del bot con contexto del cliente
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            )
         ) {
-            item {
-                SupportCard(
-                    title = "Preguntas Frecuentes",
-                    description = "Encuentra respuestas a las preguntas más comunes",
-                    icon = Icons.Default.Help,
-                    onClick = { }
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                Color(0xFF4CAF50),
+                                shape = CircleShape
+                            )
+                    )
+                    Text(
+                        text = if (chatContext.clientName.isNotEmpty())
+                            "Asistente para ${chatContext.clientName}"
+                        else
+                            "Asistente inteligente en línea",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                }
+
+                // Mostrar contexto rápido si hay información relevante
+                if (chatContext.hasActiveOperations || chatContext.pendingInvoices > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = buildString {
+                            if (chatContext.hasActiveOperations) {
+                                append("📦 ${chatContext.totalOperationsThisMonth} operaciones activas")
+                            }
+                            if (chatContext.pendingInvoices > 0) {
+                                if (isNotEmpty()) append(" • ")
+                                append("💳 ${chatContext.pendingInvoices} facturas pendientes")
+                            }
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+
+        // Lista de mensajes
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(messages) { message ->
+                ChatMessage(message = message)
+            }
+
+            // Indicador de escritura
+            if (isTyping) {
+                item {
+                    TypingIndicator()
+                }
+            }
+        }
+
+        // Acciones sugeridas (solo mostrar si hay sugerencias y no está escribiendo)
+        if (suggestedActions.isNotEmpty() && !isTyping) {
+            LazyRow(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                items(suggestedActions) { action ->
+                    SuggestionChip(
+                        onClick = {
+                            chatbotViewModel.selectSuggestedAction(action)
+                        },
+                        label = {
+                            Text(
+                                text = action,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        modifier = Modifier.widthIn(max = 200.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    )
+                }
+            }
+        }
+
+        // Input para escribir mensajes
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = messageText,
+                    onValueChange = { messageText = it },
+                    placeholder = {
+                        Text(
+                            if (chatContext.clientName.isNotEmpty())
+                                "¿En qué puedo ayudarte ${chatContext.clientName.split(" ").first()}?"
+                            else
+                                "Escribe tu pregunta..."
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    maxLines = 3
+                )
+
+                IconButton(
+                    onClick = {
+                        if (messageText.isNotBlank()) {
+                            chatbotViewModel.sendMessage(messageText.trim())
+                            messageText = ""
+                        }
+                    },
+                    enabled = messageText.isNotBlank() && !isTyping
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Enviar",
+                        tint = if (messageText.isNotBlank() && !isTyping)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatMessage(message: ChatMessage) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (message.isFromUser) Arrangement.End else Arrangement.Start
+    ) {
+        if (!message.isFromUser) {
+            // Avatar del bot
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            item {
-                SupportCard(
-                    title = "Contactar Soporte",
-                    description = "Habla directamente con nuestro equipo de soporte",
-                    icon = Icons.Default.Support,
-                    onClick = { }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        Card(
+            modifier = Modifier.widthIn(max = 280.dp),
+            shape = RoundedCornerShape(
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (message.isFromUser) 16.dp else 4.dp,
+                bottomEnd = if (message.isFromUser) 4.dp else 16.dp
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = if (message.isFromUser)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp)
+            ) {
+                Text(
+                    text = message.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (message.isFromUser)
+                        MaterialTheme.colorScheme.onPrimary
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = message.timestamp,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (message.isFromUser)
+                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
-            item {
-                SupportCard(
-                    title = "Enviar Comentarios",
-                    description = "Comparte tus sugerencias para mejorar la app",
-                    icon = Icons.Default.Feedback,
-                    onClick = { }
+        }
+
+        if (message.isFromUser) {
+            Spacer(modifier = Modifier.width(8.dp))
+            // Avatar del usuario
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(
+                        MaterialTheme.colorScheme.secondary,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            item {
-                SupportCard(
-                    title = "Reportar Problema",
-                    description = "Informa sobre errores o problemas técnicos",
-                    icon = Icons.Default.BugReport,
-                    onClick = { }
+        }
+    }
+}
+
+@Composable
+private fun TypingIndicator() {
+    Row(
+        horizontalArrangement = Arrangement.Start
+    ) {
+        // Avatar del bot
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(
+                    MaterialTheme.colorScheme.primary,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.SmartToy,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Card(
+            modifier = Modifier.widthIn(max = 120.dp),
+            shape = RoundedCornerShape(
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = 4.dp,
+                bottomEnd = 16.dp
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(3) { index ->
+                    val animatedAlpha by animateFloatAsState(
+                        targetValue = if ((System.currentTimeMillis() / 500 % 3).toInt() == index) 1f else 0.3f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(500),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "typing_dot_$index"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = animatedAlpha),
+                                shape = CircleShape
+                            )
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "escribiendo...",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }
