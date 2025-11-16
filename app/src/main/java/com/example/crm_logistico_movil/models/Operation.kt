@@ -107,22 +107,6 @@ data class Tracking(
     val fecha_registro: Instant = Clock.System.now()
 )
 
-data class FacturaCliente(
-    val id_factura_cliente: String,
-    val id_cliente: String,
-    val id_operacion: String? = null,
-    val id_cotizacion: String? = null,
-    val numero_factura: String,
-    val fecha_emision: Instant = Clock.System.now(),
-    val fecha_vencimiento: LocalDate,
-    val monto_total: Double,
-    val monto_pagado: Double = 0.0,
-    val moneda: String,
-    val estatus: EstatusFactura = EstatusFactura.PENDIENTE,
-    val observaciones: String? = null,
-    val fecha_pago: Instant? = null,
-    val fecha_creacion: Instant = Clock.System.now()
-)
 
 data class NotaCredito(
     val id_nota_credito: String,

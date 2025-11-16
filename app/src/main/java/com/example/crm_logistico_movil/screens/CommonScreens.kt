@@ -21,6 +21,8 @@ import com.example.crm_logistico_movil.components.SearchTextField
 import com.example.crm_logistico_movil.components.CustomOutlinedTextField
 import com.example.crm_logistico_movil.dummy.DummyData
 import com.example.crm_logistico_movil.models.*
+import com.example.crm_logistico_movil.models.FacturaCliente
+import com.example.crm_logistico_movil.models.FacturaClienteTmp
 import com.example.crm_logistico_movil.viewmodels.AuthViewModel
 import com.example.crm_logistico_movil.repository.ClientRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +33,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 
 // NOTIFICACIONES SCREEN
 @Composable
@@ -44,13 +47,13 @@ fun NotificationsScreen(navController: NavController) {
             NotificationItem("Cliente nuevo registrado", "Hace 5 horas", Icons.Default.PersonAdd, Color(0xFF6A1B9A))
         )
     }
-    
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = "Notificaciones",
             onBackClick = { navController.popBackStack() }
         )
-        
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -256,13 +259,13 @@ fun QuotesListScreen(navController: NavController) {
             QuoteItem("COT004", "Distribuidora 123", "$3,200", "Rechazada")
         )
     }
-    
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = "Cotizaciones",
             onBackClick = { navController.popBackStack() }
         )
-        
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -324,37 +327,87 @@ private fun QuoteListCard(quote: QuoteItem, onClick: () -> Unit) {
 // INVOICES LIST SCREEN
 @Composable
 fun InvoicesListScreen(navController: NavController) {
-    val invoices = remember {
-        listOf(
-            InvoiceItem("INV-001", "$4,500", "Pendiente", "2024-01-15"),
-            InvoiceItem("INV-002", "$2,800", "Pagada", "2024-01-10"),
-            InvoiceItem("INV-003", "$6,200", "Vencida", "2024-01-05"),
-            InvoiceItem("INV-004", "$3,200", "Pendiente", "2024-01-20")
-        )
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
+
+    val coroutineScope = rememberCoroutineScope()
+    val clientRepository = remember { ClientRepository() }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var facturas by remember { mutableStateOf<List<FacturaClienteTmp>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Cargar facturas cuando se obtiene el usuario actual
+    LaunchedEffect(authState.currentUser?.id_usuario) {
+        val clientId = authState.currentUser?.id_usuario
+        if (clientId != null) {
+            isLoading = true
+            val res = clientRepository.getFacturasCliente(clientId)
+            if (res.isSuccess) {
+                facturas = res.getOrNull() ?: emptyList()
+            } else {
+                errorMessage = res.exceptionOrNull()?.message ?: "Error al cargar facturas"
+            }
+            isLoading = false
+        }
     }
-    
+
+    val filteredFacturas = facturas.filter {
+        it.numero_factura.contains(searchQuery, ignoreCase = true) ||
+                it.estatus.contains(searchQuery, ignoreCase = true) ||
+                it.moneda.contains(searchQuery, ignoreCase = true)
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = "Facturas",
             onBackClick = { navController.popBackStack() }
         )
-        
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
-            items(invoices) { invoice ->
-                InvoiceListCard(invoice)
+            SearchTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = "Buscar facturas...",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (errorMessage != null) {
+                Text(text = errorMessage ?: "", color = MaterialTheme.colorScheme.error)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredFacturas) { factura ->
+                        InvoiceListCard(factura) {
+                            navController.navigate(Screen.InvoiceDetail.createRoute(factura.id_factura_cliente))
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun InvoiceListCard(invoice: InvoiceItem) {
+private fun InvoiceListCard(factura: FacturaClienteTmp, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -365,10 +418,11 @@ private fun InvoiceListCard(invoice: InvoiceItem) {
             Icon(
                 imageVector = Icons.Default.Receipt,
                 contentDescription = null,
-                tint = when (invoice.status) {
-                    "Pendiente" -> Color(0xFFF57C00)
-                    "Pagada" -> Color(0xFF388E3C)
-                    "Vencida" -> Color(0xFFE91E63)
+                tint = when (factura.estatus.lowercase()) {
+                    "pagada" -> Color(0xFF2E7D32)
+                    "pendiente" -> Color(0xFFF57C00)
+                    "vencida" -> Color(0xFFD32F2F)
+                    "cancelada" -> Color(0xFF757575)
                     else -> Color.Gray
                 },
                 modifier = Modifier.size(24.dp)
@@ -376,23 +430,33 @@ private fun InvoiceListCard(invoice: InvoiceItem) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = invoice.id,
-                    style = MaterialTheme.typography.titleSmall,
+                    text = factura.numero_factura,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${factura.moneda} ${String.format("%.2f", factura.monto_total)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "${invoice.amount} • ${invoice.dueDate}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = invoice.status,
+                    text = factura.estatus.replaceFirstChar {
+                        if (it.isLowerCase()) it.titlecase() else it.toString()
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = when (invoice.status) {
-                        "Pendiente" -> Color(0xFFF57C00)
-                        "Pagada" -> Color(0xFF388E3C)
-                        "Vencida" -> Color(0xFFE91E63)
+                    color = when (factura.estatus.lowercase()) {
+                        "pagada" -> Color(0xFF2E7D32)
+                        "pendiente" -> Color(0xFFF57C00)
+                        "vencida" -> Color(0xFFD32F2F)
+                        "cancelada" -> Color(0xFF757575)
                         else -> Color.Gray
                     }
+                )
+                Text(
+                    text = "Vence: ${factura.fecha_vencimiento.substring(0, 10)}", // Solo la fecha
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
             Icon(
@@ -411,7 +475,7 @@ fun SupportScreen(navController: NavController) {
             title = "Soporte",
             onBackClick = { navController.popBackStack() }
         )
-        
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -500,12 +564,14 @@ private fun SupportCard(
 // PROFILE SCREEN
 @Composable
 fun ProfileScreen(navController: NavController) {
+    val authViewModel: AuthViewModel = viewModel()
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = "Mi Perfil",
             onBackClick = { navController.popBackStack() }
         )
-        
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -520,63 +586,69 @@ fun ProfileScreen(navController: NavController) {
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                                        val authViewModel: AuthViewModel = viewModel()
-                                        val authState by authViewModel.uiState.collectAsState()
-                                        val clientRepository = remember { ClientRepository() }
-                                        var clienteInfo by remember { mutableStateOf<Map<String, Any>?>(null) }
-                                        var loadingInfo by remember { mutableStateOf(false) }
+                        val authState by authViewModel.uiState.collectAsState()
+                        val clientRepository = remember { ClientRepository() }
+                        var clienteInfo by remember { mutableStateOf<Map<String, Any>?>(null) }
+                        var loadingInfo by remember { mutableStateOf(false) }
 
-                                        LaunchedEffect(authState.currentUser?.id_usuario) {
-                                            val clientId = authState.currentUser?.id_usuario
-                                            if (clientId != null) {
-                                                loadingInfo = true
-                                                val res = clientRepository.getClientInfo(clientId)
-                                                if (res.isSuccess) {
-                                                    clienteInfo = res.getOrNull()
-                                                }
-                                                loadingInfo = false
-                                            }
-                                        }
+                        LaunchedEffect(authState.currentUser?.id_usuario) {
+                            val clientId = authState.currentUser?.id_usuario
+                            if (clientId != null) {
+                                loadingInfo = true
+                                val res = clientRepository.getClientInfo(clientId)
+                                if (res.isSuccess) {
+                                    clienteInfo = res.getOrNull()
+                                }
+                                loadingInfo = false
+                            }
+                        }
 
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(80.dp),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        val displayName = clienteInfo?.get("nombre_usuario")?.toString()
-                                            ?: clienteInfo?.get("nombre")?.toString()
-                                            ?: authState.currentUser?.nombre
-                                            ?: "Usuario"
-                                        val displayEmail = clienteInfo?.get("email_usuario")?.toString()
-                                            ?: authState.currentUser?.email
-                                            ?: ""
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        val displayName = clienteInfo?.get("nombre_usuario")?.toString()
+                            ?: clienteInfo?.get("nombre")?.toString()
+                            ?: authState.currentUser?.nombre
+                            ?: "Usuario"
+                        val displayEmail = clienteInfo?.get("email_usuario")?.toString()
+                            ?: authState.currentUser?.email
+                            ?: ""
 
-                                        Text(
-                                            text = displayName,
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = displayEmail,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                        )
-                                        Text(
-                                            text = "Cliente",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                        Text(
+                            text = displayName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = displayEmail,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "Cliente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
-            
+
             item {
                 ProfileOption("Editar Información", Icons.Default.Edit) { navController.navigate(com.example.crm_logistico_movil.navigation.Screen.EditProfile.route) }
             }
             item {
-                ProfileOption("Cerrar Sesión", Icons.Default.Logout) { }
+                ProfileOption("Cerrar Sesión", Icons.Default.Logout) {
+                    // Llamar la función logout para limpiar la sesión
+                    authViewModel.logout()
+                    // Navegar al login y limpiar el stack de navegación
+                    navController.navigate(com.example.crm_logistico_movil.navigation.Screen.Login.route) {
+                        popUpTo(0) { inclusive = true } // Limpiar todo el stack de navegación
+                    }
+                }
             }
         }
     }
@@ -753,13 +825,6 @@ data class QuoteItem(
     val client: String,
     val amount: String,
     val status: String
-)
-
-data class InvoiceItem(
-    val id: String,
-    val amount: String,
-    val status: String,
-    val dueDate: String
 )
 
 // HELPER FUNCTIONS
@@ -1012,7 +1077,256 @@ fun QuoteRequestsScreen(navController: NavController) {
 
 @Composable
 fun InvoiceDetailScreen(navController: NavController, invoiceId: String?) {
-    GenericScreen(navController, "Detalle de Factura", "Factura: $invoiceId")
+    if (invoiceId == null) {
+        GenericScreen(navController, "Error", "ID de factura no válido")
+        return
+    }
+
+    val clientRepository = remember { ClientRepository() }
+    var factura by remember { mutableStateOf<FacturaClienteTmp?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(invoiceId) {
+        val result = clientRepository.getFacturaDetail(invoiceId)
+        if (result.isSuccess) {
+            factura = result.getOrNull()
+        } else {
+            errorMessage = result.exceptionOrNull()?.message ?: "Error al cargar la factura"
+        }
+        isLoading = false
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = "Detalle de Factura",
+            onBackClick = { navController.popBackStack() }
+        )
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (errorMessage != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = errorMessage!!,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        } else {
+            factura?.let { f ->
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Información básica de la factura
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    // Título y ID de la factura
+                                    Text(
+                                        text = f.numero_factura,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Factura ${f.id_factura_cliente}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // Badge del estatus
+                                    Row {
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = when (f.estatus.lowercase()) {
+                                                    "pagada" -> Color(0xFF2E7D32).copy(alpha = 0.1f)
+                                                    "pendiente" -> Color(0xFFF57C00).copy(alpha = 0.1f)
+                                                    "vencida" -> Color(0xFFD32F2F).copy(alpha = 0.1f)
+                                                    else -> Color.Gray.copy(alpha = 0.1f)
+                                                }
+                                            )
+                                        ) {
+                                            Text(
+                                                text = f.estatus.replaceFirstChar {
+                                                    if (it.isLowerCase()) it.titlecase() else it.toString()
+                                                },
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = when (f.estatus.lowercase()) {
+                                                    "pagada" -> Color(0xFF2E7D32)
+                                                    "pendiente" -> Color(0xFFF57C00)
+                                                    "vencida" -> Color(0xFFD32F2F)
+                                                    else -> Color.Gray
+                                                },
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Información de montos
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp)
+                            ) {
+                                Text(
+                                    text = "Información Financiera",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+
+                                DetailRow("Monto Total", "${f.moneda} ${String.format("%.2f", f.monto_total)}")
+                                DetailRow("Monto Pagado", "${f.moneda} ${String.format("%.2f", f.monto_pagado)}")
+                                DetailRow("Saldo Pendiente", "${f.moneda} ${String.format("%.2f", f.monto_total - f.monto_pagado)}")
+                                DetailRow("Moneda", f.moneda)
+                            }
+                        }
+                    }
+
+                    // Información de fechas
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp)
+                            ) {
+                                Text(
+                                    text = "Fechas Importantes",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+
+                                DetailRow("Fecha de Emisión", f.fecha_emision.substring(0, 10))
+                                DetailRow("Fecha de Vencimiento", f.fecha_vencimiento.substring(0, 10))
+                                DetailRow("Fecha de Creación", f.fecha_creacion.substring(0, 10))
+                            }
+                        }
+                    }
+
+                    // Información relacionada
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp)
+                            ) {
+                                Text(
+                                    text = "Información Relacionada",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+
+                                f.id_operacion?.let { DetailRow("Operación", it) }
+                                f.id_cotizacion?.let { DetailRow("Cotización", it) }
+                                f.cotizacion_tipo_servicio?.let { DetailRow("Tipo de Servicio", it) }
+                                f.cotizacion_tipo_carga?.let { DetailRow("Tipo de Carga", it) }
+                                f.descripcion_mercancia?.let { DetailRow("Descripción de Mercancía", it) }
+                            }
+                        }
+                    }
+
+                    // Observaciones
+                    if (!f.observaciones.isNullOrBlank()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp)
+                                ) {
+                                    Text(
+                                        text = "Observaciones",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                    Text(
+                                        text = f.observaciones!!,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } ?: run {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Factura no encontrada")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.End
+        )
+    }
 }
 
 @Composable
@@ -1098,7 +1412,7 @@ private fun GenericScreen(navController: NavController, title: String, content: 
             title = title,
             onBackClick = { navController.popBackStack() }
         )
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -1,6 +1,7 @@
 package com.example.crm_logistico_movil.api
 
 import com.example.crm_logistico_movil.models.*
+import com.example.crm_logistico_movil.models.FacturaClienteTmp
 import retrofit2.Response
 import retrofit2.http.*
 import kotlin.jvm.JvmSuppressWildcards
@@ -45,6 +46,11 @@ interface ApiService {
         @Query("limit") limit: Int = 10,
         @Query("offset") offset: Int = 0
     ): Response<SolicitudesListResponse>
+
+    @GET("cliente/{client_id}/facturas")
+    suspend fun getFacturasCliente(
+        @Path("client_id") clientId: String
+    ): Response<List<FacturaClienteTmp>>
 
     @GET("cliente/{client_id}/info")
     suspend fun getClienteInfo(

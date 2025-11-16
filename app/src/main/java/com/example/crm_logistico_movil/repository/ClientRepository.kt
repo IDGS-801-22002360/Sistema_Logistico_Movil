@@ -2,6 +2,9 @@ package com.example.crm_logistico_movil.repository
 
 import com.example.crm_logistico_movil.api.ApiClient
 import com.example.crm_logistico_movil.models.*
+import com.example.crm_logistico_movil.models.FacturaCliente
+import com.example.crm_logistico_movil.models.FacturaClienteTmp
+
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -190,5 +193,69 @@ class ClientRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun getFacturasCliente(clientId: String): Result<List<FacturaClienteTmp>> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getFacturasCliente(clientId)
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    Result.success(it)
+                } ?: Result.failure(Exception("Response body is null"))
+            } else {
+                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getFacturaDetail(facturaId: String): Result<FacturaClienteTmp?> = withContext(Dispatchers.IO) {
+        try {
+            // Por ahora usamos el endpoint genérico para obtener detalles de factura
+            // Podrías crear un endpoint específico en tu backend más adelante
+            val response = apiService.callProcedure(
+                "sp_obtener_detalle_factura",
+                mapOf("params" to listOf(facturaId))
+            )
+            if (response.isSuccessful) {
+                response.body()?.let { procedureResponse ->
+                    // Extraer el primer resultado si existe
+                    val results = procedureResponse.results
+                    if (results.isNotEmpty() && results[0].isNotEmpty()) {
+                        val facturaData = results[0][0] // Primera fila del primer resultado
+                        // Convertir el Map a FacturaCliente
+                        val factura = FacturaClienteTmp(
+                            id_factura_cliente = facturaData["id_factura_cliente"].toString(),
+                            id_cliente = facturaData["id_cliente"].toString(),
+                            id_operacion = facturaData["id_operacion"]?.toString(),
+                            id_cotizacion = facturaData["id_cotizacion"]?.toString(),
+                            numero_factura = facturaData["numero_factura"].toString(),
+                            fecha_emision = facturaData["fecha_emision"].toString(),
+                            fecha_vencimiento = facturaData["fecha_vencimiento"].toString(),
+                            monto_total = (facturaData["monto_total"] as? Number)?.toDouble() ?: 0.0,
+                            monto_pagado = (facturaData["monto_pagado"] as? Number)?.toDouble() ?: 0.0,
+                            moneda = facturaData["moneda"].toString(),
+                            estatus = facturaData["estatus"].toString(),
+                            observaciones = facturaData["observaciones"]?.toString(),
+                            fecha_creacion = facturaData["fecha_creacion"].toString(),
+                            cotizacion_tipo_servicio = facturaData["cotizacion_tipo_servicio"]?.toString(),
+                            cotizacion_tipo_carga = facturaData["cotizacion_tipo_carga"]?.toString(),
+                            cotizacion_incoterm = facturaData["cotizacion_incoterm"]?.toString(),
+                            descripcion_mercancia = facturaData["descripcion_mercancia"]?.toString(),
+                            operacion_tipo_servicio = facturaData["operacion_tipo_servicio"]?.toString(),
+                            fecha_inicio_operacion = facturaData["fecha_inicio_operacion"]?.toString(),
+                            fecha_estimada_entrega = facturaData["fecha_estimada_entrega"]?.toString()
+                        )
+                        Result.success(factura)
+                    } else {
+                        Result.success(null)
+                    }
+                } ?: Result.failure(Exception("Response body is null"))
+            } else {
+                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
- 
