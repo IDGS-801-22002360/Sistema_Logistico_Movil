@@ -85,6 +85,10 @@ data class SolicitudesListResponse(
     val solicitudes: List<Map<String, Any>>
 )
 
+data class TrackingResponse(
+    val tracking: List<Map<String, Any>>
+)
+
 // Data Models
 data class User(
     val id_usuario: String,

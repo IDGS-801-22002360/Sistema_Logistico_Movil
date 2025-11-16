@@ -258,4 +258,19 @@ class ClientRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun getTrackingPorOperacion(idOperacion: String): Result<List<Map<String, Any>>> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getTrackingPorOperacion(idOperacion)
+            if (response.isSuccessful) {
+                response.body()?.let { trackingResponse ->
+                    Result.success(trackingResponse.tracking)
+                } ?: Result.failure(Exception("Response body is null"))
+            } else {
+                Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

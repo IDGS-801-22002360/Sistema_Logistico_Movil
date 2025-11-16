@@ -63,6 +63,11 @@ interface ApiService {
         @Body body: Map<String, @JvmSuppressWildcards Any?>
     ): Response<com.example.crm_logistico_movil.models.EditClientResponse>
 
+    @GET("tracking/{id_operacion}")
+    suspend fun getTrackingPorOperacion(
+        @Path("id_operacion") idOperacion: String
+    ): Response<TrackingResponse>
+
     @POST("call/{procName}")
     suspend fun callProcedure(
         @Path("procName") procName: String,
