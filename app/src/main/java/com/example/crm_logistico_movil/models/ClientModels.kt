@@ -103,6 +103,8 @@ data class TrackingInfo(
     val id_tracking: String,
     val fecha_hora_actualizacion: String,
     val ubicacion_actual: String? = null,
+    val latitud: Double? = null,
+    val longitud: Double? = null,
     val estatus_seguimiento: String,
     val referencia_transportista: String? = null,
     val nombre_transportista: String? = null,

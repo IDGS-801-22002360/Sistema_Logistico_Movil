@@ -31,117 +31,96 @@ class ClientDashboardViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
-                // Cargar resumen del cliente
+                // En lugar de usar el procedimiento que no funciona,
+                // calculamos las estadísticas usando las APIs existentes
 
-                val summaryResult = clientRepository.getClientSummary(clientId)
+                // 1. Cargar todas las operaciones para contar activas
+                val operationsResult = clientRepository.getClientOperations(clientId, limit = 100)
+
+                // 2. Cargar todas las facturas para contar pendientes
+                val facturasResult = clientRepository.getFacturasCliente(clientId)
+
+                // 3. Cargar solicitudes de cotización
+                val requestsResult = clientRepository.getClientQuoteRequests(clientId, limit = 100)
+
+                // Calcular estadísticas
+                var operacionesActivas = 0
+                var facturasPendientes = 0
+                var solicitudesPendientes = 0
+
+                // Contar operaciones activas (no entregadas ni canceladas)
+                if (operationsResult.isSuccess) {
+                    val proc = operationsResult.getOrNull()
+                    val rows = proc?.results?.getOrNull(0) ?: emptyList()
+                    operacionesActivas = rows.count { row ->
+                        val estatus = row["estatus"]?.toString()?.lowercase() ?: ""
+                        estatus !in listOf("entregado", "cancelado", "finalizado")
+                    }
+                }
+
+                // Contar facturas pendientes (no pagadas)
+                if (facturasResult.isSuccess) {
+                    val facturas = facturasResult.getOrNull() ?: emptyList()
+                    facturasPendientes = facturas.count { factura ->
+                        factura.estatus.lowercase() in listOf("pendiente", "vencida")
+                    }
+                }
+
+                // Contar solicitudes pendientes (no respondidas)
+                if (requestsResult.isSuccess) {
+                    val proc = requestsResult.getOrNull()
+                    val rows = proc?.results?.getOrNull(0) ?: emptyList()
+                    solicitudesPendientes = rows.count { row ->
+                        val estatus = row["estatus"]?.toString()?.lowercase() ?: ""
+                        estatus in listOf("pendiente", "en_proceso", "enviada")
+                    }
+                }
+
+                // Crear resumen con datos calculados
+                val summary = ClientSummary(
+                    operacionesActivas = operacionesActivas,
+                    facturasPendientes = facturasPendientes,
+                    cotizacionesPendientes = 0, // No tenemos cotizaciones en el sistema actual
+                    solicitudesPendientes = solicitudesPendientes
+                )
 
                 // Cargar operaciones recientes (máximo 3)
-                val operationsResult = clientRepository.getClientOperations(clientId, limit = 3)
+                val recentOperationsResult = clientRepository.getClientOperations(clientId, limit = 3)
+                val operations = if (recentOperationsResult.isSuccess) mapToOperations(recentOperationsResult.getOrNull()) else emptyList()
 
-                // Cargar solicitudes de cotización (máximo 5)
-                val requestsResult = clientRepository.getClientQuoteRequests(clientId, limit = 5)
+                // Cargar solicitudes recientes (máximo 5)
+                val requests = if (requestsResult.isSuccess) mapToSolicitudes(requestsResult.getOrNull()).take(5) else emptyList()
 
-                // Cargar facturas recientes (máximo 3)
-                val invoicesResult = clientRepository.getClientInvoices(clientId, limit = 3)
-
-                // Parse results
-                fun mapToClientSummary(proc: ProcedureResponse?): ClientSummary? {
-                    val firstRow = proc?.results?.getOrNull(0)?.getOrNull(0) ?: return null
-                    val operaciones = firstRow["operaciones_activas"]?.toString()?.toIntOrNull() ?: 0
-                    val facturas = firstRow["facturas_pendientes"]?.toString()?.toIntOrNull() ?: 0
-                    val cotizaciones = firstRow["cotizaciones_pendientes"]?.toString()?.toIntOrNull() ?: 0
-                    val solicitudes = firstRow["solicitudes_pendientes"]?.toString()?.toIntOrNull() ?: 0
-                    return ClientSummary(operaciones, facturas, cotizaciones, solicitudes)
-                }
-
-                fun mapToOperations(proc: ProcedureResponse?): List<OperationExtended> {
-                    val rows = proc?.results?.getOrNull(0) ?: emptyList()
-                    return rows.map { m ->
-                        OperationExtended(
-                            id_operacion = m["id_operacion"]?.toString() ?: "",
-                            id_cotizacion = m["id_cotizacion"]?.toString(),
-                            id_cliente = m["id_cliente"]?.toString() ?: "",
-                            id_usuario_operativo = m["id_usuario_operativo"]?.toString() ?: "",
-                            id_proveedor = m["id_proveedor"]?.toString() ?: "",
-                            id_agente = m["id_agente"]?.toString(),
-                            tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
-                            tipo_carga = m["tipo_carga"]?.toString() ?: "",
-                            incoterm = m["incoterm"]?.toString() ?: "",
-                            fecha_inicio_operacion = m["fecha_inicio_operacion"]?.toString() ?: "",
-                            fecha_estimada_arribo = m["fecha_estimada_arribo"]?.toString(),
-                            fecha_estimada_entrega = m["fecha_estimada_entrega"]?.toString(),
-                            fecha_arribo_real = m["fecha_arribo_real"]?.toString(),
-                            fecha_entrega_real = m["fecha_entrega_real"]?.toString(),
-                            estatus = m["estatus"]?.toString() ?: "",
-                            numero_referencia_proveedor = m["numero_referencia_proveedor"]?.toString(),
-                            notas_operacion = m["notas_operacion"]?.toString(),
-                            fecha_creacion = m["fecha_creacion"]?.toString() ?: "",
-                            proveedorNombre = m["proveedor_nombre"]?.toString(),
-                            operativoNombre = m["operativo_nombre"]?.toString(),
-                            operativoApellido = m["operativo_apellido"]?.toString()
-                        )
-                    }
-                }
-
-                fun mapToSolicitudes(proc: ProcedureResponse?): List<SolicitudCotizacionExtended> {
-                    val rows = proc?.results?.getOrNull(0) ?: emptyList()
-                    return rows.map { m ->
-                        SolicitudCotizacionExtended(
-                            id_solicitud = m["id_solicitud"]?.toString() ?: "",
-                            id_cliente = m["id_cliente"]?.toString() ?: "",
-                            tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
-                            tipo_carga = m["tipo_carga"]?.toString() ?: "",
-                            origen_ciudad = m["origen_ciudad"]?.toString() ?: "",
-                            origen_pais = m["origen_pais"]?.toString() ?: "",
-                            destino_ciudad = m["destino_ciudad"]?.toString() ?: "",
-                            destino_pais = m["destino_pais"]?.toString() ?: "",
-                            fecha_solicitud = m["fecha_solicitud"]?.toString() ?: "",
-                            descripcion_mercancia = m["descripcion_mercancia"]?.toString(),
-                            valor_estimado_mercancia = m["valor_estimado_mercancia"]?.toString()?.toDoubleOrNull(),
-                            estatus = m["estatus"]?.toString() ?: ""
-                        )
-                    }
-                }
-
-                fun mapToFacturas(proc: ProcedureResponse?): List<FacturaExtended> {
-                    val rows = proc?.results?.getOrNull(0) ?: emptyList()
-                    return rows.map { m ->
+                // Cargar facturas recientes (máximo 3) - usar el endpoint directo
+                val recentFacturas = if (facturasResult.isSuccess) {
+                    (facturasResult.getOrNull() ?: emptyList()).take(3).map { factura ->
                         FacturaExtended(
-                            id_factura_cliente = m["id_factura_cliente"]?.toString() ?: "",
-                            id_cliente = m["id_cliente"]?.toString() ?: "",
-                            id_operacion = m["id_operacion"]?.toString(),
-                            id_cotizacion = m["id_cotizacion"]?.toString(),
-                            numero_factura = m["numero_factura"]?.toString() ?: "",
-                            fecha_emision = m["fecha_emision"]?.toString() ?: "",
-                            fecha_vencimiento = m["fecha_vencimiento"]?.toString() ?: "",
-                            monto_total = m["monto_total"]?.toString()?.toDoubleOrNull() ?: 0.0,
-                            monto_pagado = m["monto_pagado"]?.toString()?.toDoubleOrNull() ?: 0.0,
-                            moneda = m["moneda"]?.toString() ?: "",
-                            estatus = m["estatus"]?.toString() ?: "",
-                            observaciones = m["observaciones"]?.toString(),
-                            fecha_pago = m["fecha_pago"]?.toString(),
-                            fecha_creacion = m["fecha_creacion"]?.toString() ?: "",
-                            operacionReferencia = m["operacion_referencia"]?.toString(),
-                            cotizacionReferencia = m["cotizacion_referencia"]?.toString()
+                            id_factura_cliente = factura.id_factura_cliente,
+                            id_cliente = factura.id_cliente,
+                            id_operacion = factura.id_operacion,
+                            id_cotizacion = factura.id_cotizacion,
+                            numero_factura = factura.numero_factura,
+                            fecha_emision = factura.fecha_emision,
+                            fecha_vencimiento = factura.fecha_vencimiento,
+                            monto_total = factura.monto_total,
+                            monto_pagado = factura.monto_pagado,
+                            moneda = factura.moneda,
+                            estatus = factura.estatus,
+                            observaciones = factura.observaciones,
+                            fecha_pago = null,
+                            fecha_creacion = factura.fecha_creacion,
+                            operacionReferencia = null,
+                            cotizacionReferencia = null
                         )
                     }
-                }
-
-                // Si necesitas cargar cotizaciones (CotizacionExtended) por separado, descomenta y úsalo
-                // val quotesResponse = clientRepository.getClientQuotes(clientId, limit = 3)
-
-
-                val summary = if (summaryResult.isSuccess) mapToClientSummary(summaryResult.getOrNull()) else null
-                val operations = if (operationsResult.isSuccess) mapToOperations(operationsResult.getOrNull()) else emptyList()
-                val requests = if (requestsResult.isSuccess) mapToSolicitudes(requestsResult.getOrNull()) else emptyList()
-                val invoices = if (invoicesResult.isSuccess) mapToFacturas(invoicesResult.getOrNull()) else emptyList()
+                } else emptyList()
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     clientSummary = summary,
                     recentOperations = operations,
                     quoteRequests = requests,
-                    recentInvoices = invoices,
+                    recentInvoices = recentFacturas,
                     errorMessage = null
                 )
 
@@ -151,6 +130,56 @@ class ClientDashboardViewModel : ViewModel() {
                     errorMessage = "Error al cargar datos: ${e.message}"
                 )
             }
+        }
+    }
+
+    // Funciones auxiliares para mapear datos
+    private fun mapToOperations(proc: ProcedureResponse?): List<OperationExtended> {
+        val rows = proc?.results?.getOrNull(0) ?: emptyList()
+        return rows.map { m ->
+            OperationExtended(
+                id_operacion = m["id_operacion"]?.toString() ?: "",
+                id_cotizacion = m["id_cotizacion"]?.toString(),
+                id_cliente = m["id_cliente"]?.toString() ?: "",
+                id_usuario_operativo = m["id_usuario_operativo"]?.toString() ?: "",
+                id_proveedor = m["id_proveedor"]?.toString() ?: "",
+                id_agente = m["id_agente"]?.toString(),
+                tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
+                tipo_carga = m["tipo_carga"]?.toString() ?: "",
+                incoterm = m["incoterm"]?.toString() ?: "",
+                fecha_inicio_operacion = m["fecha_inicio_operacion"]?.toString() ?: "",
+                fecha_estimada_arribo = m["fecha_estimada_arribo"]?.toString(),
+                fecha_estimada_entrega = m["fecha_estimada_entrega"]?.toString(),
+                fecha_arribo_real = m["fecha_arribo_real"]?.toString(),
+                fecha_entrega_real = m["fecha_entrega_real"]?.toString(),
+                estatus = m["estatus"]?.toString() ?: "",
+                numero_referencia_proveedor = m["numero_referencia_proveedor"]?.toString(),
+                notas_operacion = m["notas_operacion"]?.toString(),
+                fecha_creacion = m["fecha_creacion"]?.toString() ?: "",
+                proveedorNombre = m["proveedor_nombre"]?.toString(),
+                operativoNombre = m["operativo_nombre"]?.toString(),
+                operativoApellido = m["operativo_apellido"]?.toString()
+            )
+        }
+    }
+
+    private fun mapToSolicitudes(proc: ProcedureResponse?): List<SolicitudCotizacionExtended> {
+        val rows = proc?.results?.getOrNull(0) ?: emptyList()
+        return rows.map { m ->
+            SolicitudCotizacionExtended(
+                id_solicitud = m["id_solicitud"]?.toString() ?: "",
+                id_cliente = m["id_cliente"]?.toString() ?: "",
+                tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
+                tipo_carga = m["tipo_carga"]?.toString() ?: "",
+                origen_ciudad = m["origen_ciudad"]?.toString() ?: "",
+                origen_pais = m["origen_pais"]?.toString() ?: "",
+                destino_ciudad = m["destino_ciudad"]?.toString() ?: "",
+                destino_pais = m["destino_pais"]?.toString() ?: "",
+                fecha_solicitud = m["fecha_solicitud"]?.toString() ?: "",
+                descripcion_mercancia = m["descripcion_mercancia"]?.toString(),
+                valor_estimado_mercancia = m["valor_estimado_mercancia"]?.toString()?.toDoubleOrNull(),
+                estatus = m["estatus"]?.toString() ?: ""
+            )
         }
     }
 
