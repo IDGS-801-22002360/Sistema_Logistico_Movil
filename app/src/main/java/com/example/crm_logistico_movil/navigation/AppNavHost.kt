@@ -8,13 +8,21 @@ import com.example.crm_logistico_movil.auth.ForgotPasswordScreen
 import com.example.crm_logistico_movil.auth.LoginScreen
 import com.example.crm_logistico_movil.auth.RegisterScreen
 import com.example.crm_logistico_movil.client.ClientDashboardScreen
+import com.example.crm_logistico_movil.client.NewQuoteRequestScreen
 import com.example.crm_logistico_movil.operative.OperativeDashboardScreen
 import com.example.crm_logistico_movil.admin.AdminDashboardScreen
 import com.example.crm_logistico_movil.sales.SalesDashboardScreen
 import com.example.crm_logistico_movil.screens.*
+import com.example.crm_logistico_movil.screens.AISupportScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.crm_logistico_movil.viewmodels.AuthViewModel
+import com.example.crm_logistico_movil.viewmodels.NotificationViewModel
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
+    val authViewModel: AuthViewModel = viewModel()
+    val notificationViewModel: NotificationViewModel = viewModel() // Instancia compartida
+
     NavHost(navController = navController, startDestination = Screen.Login.route) {
         // Autenticación
         composable(Screen.Login.route) {
@@ -29,8 +37,21 @@ fun AppNavHost(navController: NavHostController) {
 
         // Dashboards por roles
         composable(Screen.ClientDashboard.route) {
-            ClientDashboardScreen(navController = navController)
+            ClientDashboardScreen(
+                navController = navController,
+                notificationViewModel = notificationViewModel
+            )
         }
+
+        // Nueva solicitud de cotización (específica para clientes)
+        composable("new_quote_request") {
+            NewQuoteRequestScreen(
+                navController = navController,
+                authViewModel = authViewModel,
+                notificationViewModel = notificationViewModel
+            )
+        }
+
         composable(Screen.OperativeDashboard.route) {
             OperativeDashboardScreen(navController = navController)
         }
@@ -126,10 +147,17 @@ fun AppNavHost(navController: NavHostController) {
 
         // Notificaciones y Soporte
         composable(Screen.Notifications.route) {
-            NotificationsScreen(navController = navController)
+            NotificationsScreen(
+                navController = navController,
+                notificationViewModel = notificationViewModel,
+                authViewModel = authViewModel
+            )
         }
         composable(Screen.Support.route) {
             SupportScreen(navController = navController)
+        }
+        composable(Screen.AISupport.route) {
+            AISupportScreen(navController = navController)
         }
         composable(Screen.Feedback.route) {
             FeedbackScreen(navController = navController)

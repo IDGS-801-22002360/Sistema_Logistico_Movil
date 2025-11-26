@@ -1,5 +1,6 @@
 package com.example.crm_logistico_movil.client
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +31,8 @@ import com.example.crm_logistico_movil.utils.getStatusColor
 import com.example.crm_logistico_movil.utils.getStatusText
 import com.example.crm_logistico_movil.viewmodels.AuthViewModel
 import com.example.crm_logistico_movil.viewmodels.ClientDashboardViewModel
+import com.example.crm_logistico_movil.viewmodels.NotificationViewModel
+import com.example.crm_logistico_movil.services.NotificationService
 
 // ============================================================================
 // ASUNCIONES DE CLASES DE MODELO: DEBES TENER ESTAS DEFINICIONES EN models.kt
@@ -45,16 +48,24 @@ import com.example.crm_logistico_movil.viewmodels.ClientDashboardViewModel
 @Composable
 fun ClientDashboardScreen(
     navController: NavController,
+    notificationViewModel: NotificationViewModel,
     clientViewModel: ClientDashboardViewModel = viewModel()
 ) {
     val uiState by clientViewModel.uiState.collectAsState()
     val authViewModel: AuthViewModel = viewModel()
-    val authState by authViewModel.uiState.collectAsState() // Necesario para obtener el usuario actual
+    val authState by authViewModel.uiState.collectAsState()
+    val notificationState by notificationViewModel.uiState.collectAsState()
+
+    // Inicializar el servicio de notificaciones
+    LaunchedEffect(Unit) {
+        NotificationService.initialize(notificationViewModel)
+    }
 
     // Cargar datos cuando se obtiene el usuario actual
     LaunchedEffect(authState.currentUser?.id_usuario) {
         authState.currentUser?.id_usuario?.let { clientId ->
             clientViewModel.loadDashboardData(clientId)
+
         }
     }
 
@@ -67,10 +78,23 @@ fun ClientDashboardScreen(
                     IconButton(
                         onClick = { navController.navigate(Screen.Notifications.route) }
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones"
-                        )
+                        Box {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notificaciones"
+                            )
+                            // Badge de notificaciones no leídas
+                            if (notificationState.unreadCount > 0) {
+                                Badge(
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                ) {
+                                    Text(
+                                        text = if (notificationState.unreadCount > 99) "99+" else notificationState.unreadCount.toString(),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
                     }
                     IconButton(
                         onClick = { navController.navigate(Screen.Profile.route) }
@@ -82,6 +106,26 @@ fun ClientDashboardScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            // Botón temporal para probar notificaciones
+            FloatingActionButton(
+                onClick = {
+                    authState.currentUser?.id_usuario?.let { clientId ->
+                        Log.d("ClientDashboard", "Testing notification creation for client: $clientId")
+                        val timestamp = System.currentTimeMillis()
+
+                        // Probar diferentes tipos de notificaciones
+                        NotificationService.notifySolicitudCreated("SOL-TEST-$timestamp", clientId)
+                        NotificationService.notifyOperacionAssigned("OP-TEST-$timestamp", clientId)
+                        NotificationService.notifyFacturaGenerated("FAC-TEST-$timestamp", clientId, "$1,500.00 USD")
+                        NotificationService.notifyFacturaVencimiento("FAC-TEST-$timestamp", clientId, 5)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.secondary
+            ) {
+                Icon(Icons.Default.Notifications, contentDescription = "Test Notifications")
+            }
         }
     ) { paddingValues -> // paddingValues es importante para que el contenido no se solape con la TopAppBar
         if (uiState.isLoading) {
@@ -239,10 +283,16 @@ private fun QuickActionsRow(navController: NavController) {
                         onClick = { navController.navigate(Screen.InvoicesList.route) }
                     ),
                     QuickAction(
-                        title = "Soporte",
-                        icon = Icons.Default.Support,
+                        title = "ChatBot",
+                        icon = Icons.Default.SmartToy,
                         color = Color(0xFF7B1FA2),
                         onClick = { navController.navigate(Screen.Support.route) }
+                    ),
+                    QuickAction(
+                        title = "Soporte IA",
+                        icon = Icons.Default.Psychology,
+                        color = Color(0xFF2E7D32),
+                        onClick = { navController.navigate(Screen.AISupport.route) }
                     )
                 )
             ) { action ->
@@ -583,8 +633,9 @@ private fun QuoteRequestItem(
     quote: SolicitudCotizacionExtended, // Confirmado: recibe SolicitudCotizacionExtended
     onClick: () -> Unit
 ) {
+    android.util.Log.d("ClientDashboard", "QuoteRequestItem data: origen_pais=${quote.origen_pais}, destino_pais=${quote.destino_pais}, origen_ciudad=${quote.origen_ciudad}, destino_ciudad=${quote.destino_ciudad}")
     Card(
-        modifier = Modifier
+            modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
@@ -655,7 +706,7 @@ private fun RecentInvoicesCard(
                     fontWeight = FontWeight.Bold
                 )
                 TextButton(
-                    onClick = { navController.navigate("invoices") }
+                    onClick = { navController.navigate(Screen.InvoicesList.route) }
                 ) {
                     Text("Ver todas")
                     Icon(
@@ -689,7 +740,7 @@ private fun RecentInvoicesCard(
                     items(invoices.take(3)) { invoice -> // 'invoice' es FacturaExtended
                         InvoiceItem(
                             invoice = invoice,
-                            onClick = { navController.navigate("invoice_detail/${invoice.id_factura_cliente}") } // usar id_factura_cliente
+                            onClick = { navController.navigate(Screen.InvoiceDetail.createRoute(invoice.id_factura_cliente)) } // usar id_factura_cliente
                         )
                     }
                 }
@@ -762,6 +813,9 @@ private fun InvoiceItem(
 @Composable
 fun PreviewClientDashboardScreen() {
     CRM_Logistico_MovilTheme {
-        ClientDashboardScreen(navController = rememberNavController())
+        ClientDashboardScreen(
+            navController = rememberNavController(),
+            notificationViewModel = viewModel()
+        )
     }
 }

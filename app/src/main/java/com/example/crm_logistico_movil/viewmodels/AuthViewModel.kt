@@ -1,5 +1,6 @@
 package com.example.crm_logistico_movil.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,8 +8,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.example.crm_logistico_movil.models.*
-import com.example.crm_logistico_movil.repository.AuthRepository
+import com.example.crm_logistico_movil.repository.AuthRepositoryAPI
+import com.example.crm_logistico_movil.repository.UnifiedAuthRepository
 import com.example.crm_logistico_movil.repository.SessionManager
+import com.example.crm_logistico_movil.services.NotificationService
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -19,9 +22,10 @@ data class AuthUiState(
 )
 
 class AuthViewModel : ViewModel() {
-    
-    private val authRepository = AuthRepository()
-    
+
+    // MIGRACIÓN: Usar UnifiedAuthRepository que puede cambiar entre sistemas según configuración
+    private val authRepository = UnifiedAuthRepository()
+
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
@@ -30,27 +34,47 @@ class AuthViewModel : ViewModel() {
         SessionManager.currentUser?.let { user ->
             _uiState.value = _uiState.value.copy(currentUser = user, isLoggedIn = true)
         }
+
+        // Log cual sistema se está usando
+        Log.d("AuthViewModel", "Initialized with: ${authRepository.getMigrationStatus()}")
     }
-    
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
+                Log.d("AuthViewModel", "Attempting login for: $email")
                 val result = authRepository.login(email, password)
+                Log.d("AuthViewModel", "Login result success: ${result.isSuccess}")
+
                 if (result.isSuccess) {
                     val body = result.getOrNull()
-                    val user = body?.user?.firstOrNull()
-                    if (user != null) {
-                        // persist to global session so other screens can see it
-                        SessionManager.currentUser = user
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            currentUser = user,
-                            isLoggedIn = true,
-                            successMessage = body?.message ?: "Login correcto"
-                        )
+                    Log.d("AuthViewModel", "Login response body: $body")
+
+                    // Check if the API returned success status (1 = success, 0 = failure)
+                    if (body?.status == 1) {
+                        val user = body.user?.firstOrNull()
+                        Log.d("AuthViewModel", "Parsed user: $user")
+
+                        if (user != null) {
+                            // persist to global session so other screens can see it
+                            SessionManager.currentUser = user
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                currentUser = user,
+                                isLoggedIn = true,
+                                successMessage = body.message ?: "Login correcto"
+                            )
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = "No se pudo obtener la información del usuario",
+                                isLoggedIn = false
+                            )
+                        }
                     } else {
+                        // API returned error status (0)
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             errorMessage = body?.message ?: "Credenciales inválidas",
@@ -58,6 +82,7 @@ class AuthViewModel : ViewModel() {
                         )
                     }
                 } else {
+                    Log.e("AuthViewModel", "Login failed: ${result.exceptionOrNull()?.message}")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = result.exceptionOrNull()?.message ?: "Error al autenticar",
@@ -65,6 +90,7 @@ class AuthViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Login exception: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Error de conexión: ${e.message}",
@@ -73,7 +99,7 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun register(registerRequest: RegisterRequest) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
@@ -94,15 +120,34 @@ class AuthViewModel : ViewModel() {
 
                 if (result.isSuccess) {
                     val body = result.getOrNull()
-                    val user = body?.usuario?.firstOrNull()
-                    if (user != null) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            currentUser = user,
-                            isLoggedIn = true,
-                            successMessage = body?.message ?: "Registro exitoso"
-                        )
+
+                    // Check if the API returned success status (1 = success, 0 = failure)
+                    if (body?.status == 1) {
+                        val user = body.usuario?.firstOrNull()
+                        if (user != null) {
+                            SessionManager.currentUser = user
+
+                            // Emitir notificación de bienvenida
+                            NotificationService.notifyClienteRegistered(
+                                clientId = user.id_usuario,
+                                nombreCliente = "${user.nombre} ${user.apellido}"
+                            )
+
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                currentUser = user,
+                                isLoggedIn = true,
+                                successMessage = body.message ?: "Registro exitoso"
+                            )
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = "No se pudo obtener la información del usuario",
+                                isLoggedIn = false
+                            )
+                        }
                     } else {
+                        // API returned error status (0)
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             errorMessage = body?.message ?: "No se pudo registrar",
@@ -125,54 +170,38 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun forgotPassword(email: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                val result = authRepository.callProcedure("sp_request_password_reset", listOf(email))
-                if (result.isSuccess) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        successMessage = "Token generado (ver consola o correo)"
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = result.exceptionOrNull()?.message ?: "Error al solicitar reset"
-                    )
-                }
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Funcionalidad Temporal no disponible"
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = "Error de conexión: ${e.message}")
             }
         }
     }
-    
+
     fun resetPassword(token: String, newPassword: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                val result = authRepository.callProcedure("sp_reset_password", listOf(token, newPassword))
-                if (result.isSuccess) {
-                    _uiState.value = _uiState.value.copy(isLoading = false, successMessage = "Contraseña actualizada")
-                } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message ?: "Error al resetear contraseña")
-                }
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Funcionalidad Temporal no disponible"
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = "Error de conexión: ${e.message}")
             }
         }
     }
-    
+
     suspend fun checkEmailExists(email: String): Boolean {
         return try {
-            val res = authRepository.callProcedure("sp_verificar_email", listOf(email))
-            if (res.isSuccess) {
-                val proc = res.getOrNull()
-                val rows = proc?.results?.getOrNull(0) ?: emptyList()
-                // procedure returns OUT status/message but we treat success if no exception
-                rows.isNotEmpty().not() // best-effort: return false if any row? fallback
-            } else false
+            false
         } catch (e: Exception) {
             false
         }
@@ -180,18 +209,17 @@ class AuthViewModel : ViewModel() {
 
     suspend fun checkRfcExists(rfc: String): Boolean {
         return try {
-            val res = authRepository.callProcedure("sp_verificar_rfc", listOf(rfc))
-            res.isSuccess
+            false
         } catch (e: Exception) {
             false
         }
     }
-    
+
     fun logout() {
         _uiState.value = AuthUiState()
         SessionManager.currentUser = null
     }
-    
+
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(
             errorMessage = null,

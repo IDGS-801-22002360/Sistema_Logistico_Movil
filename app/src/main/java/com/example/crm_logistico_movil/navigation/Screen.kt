@@ -69,6 +69,7 @@ sealed class Screen(val route: String) {
     // Notificaciones y Soporte
     object Notifications : Screen("notifications")
     object Support : Screen("support")
+    object AISupport : Screen("ai_support")
     object Feedback : Screen("feedback")
     
     // Clientes (para operativos/admin)

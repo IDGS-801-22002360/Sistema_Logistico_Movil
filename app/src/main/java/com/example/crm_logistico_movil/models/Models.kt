@@ -33,6 +33,18 @@ data class SolicitudRequest(
     val valor_estimado_mercancia: Double? = null
 )
 
+// Modelo para el body del API call (sin id_cliente)
+data class SolicitudRequestBody(
+    val tipo_servicio: String,
+    val tipo_carga: String,
+    val origen_ciudad: String,
+    val origen_pais: String,
+    val destino_ciudad: String,
+    val destino_pais: String,
+    val descripcion_mercancia: String? = null,
+    val valor_estimado_mercancia: Double? = null
+)
+
 // Response Models
 data class ApiResponse<T>(
     val status: String,
@@ -41,14 +53,14 @@ data class ApiResponse<T>(
 )
 
 data class LoginResponse(
-    val status: String,
+    val status: Int,
     val message: String,
     val user: List<User>
 )
 
 data class RegisterResponse(
     val id_usuario: String?,
-    val status: String,
+    val status: Int,
     val message: String,
     val usuario: List<User>
 )
@@ -97,7 +109,8 @@ data class User(
     val email: String,
     val rol: String,
     val activo: Boolean,
-    val fecha_creacion: Instant,
+    val fecha_creacion: Instant? = null,
+    val id_cliente: String? = null,
     val nombre_empresa: String? = null,
     val rfc: String? = null,
     val telefono: String? = null,
@@ -113,8 +126,41 @@ data class ClienteInfoResponse(
 
 // Response for editar cliente endpoint
 data class EditClientResponse(
-    val status: String,
+    val status: Int,
     val message: String
+)
+
+// Request for register cliente endpoint
+data class RegisterClientRequest(
+    val nombre: String,
+    val apellido: String,
+    val email: String,
+    val password: String,
+    val nombre_empresa: String,
+    val rfc: String,
+    val direccion: String,
+    val ciudad: String,
+    val pais: String,
+    val telefono: String
+)
+
+// Response for register cliente endpoint
+data class RegisterClientResponse(
+    val id_usuario: Int,
+    val status: Int,
+    val message: String,
+    val usuario: List<RegisteredUserInfo>
+)
+
+data class RegisteredUserInfo(
+    val id_usuario: Int,
+    val nombre: String,
+    val apellido: String,
+    val email: String,
+    val rol: String,
+    val id_cliente: Int,
+    val nombre_empresa: String,
+    val rfc: String
 )
 
 data class Solicitud(
@@ -192,4 +238,46 @@ data class FacturaCliente(
     val fecha_inicio_operacion: String? = null, // ISO format string for datetime
     val fecha_estimada_entrega: String? = null
 
+)
+
+// Reference Data Models
+data class Pais(
+    val id_pais: String,
+    val nombre_pais: String,
+    val codigo_iso2: String
+)
+
+data class Localizacion(
+    val id_localizacion: String,
+    val id_pais: String,
+    val pais: Pais? = null,
+    val nombre_ciudad: String,
+    val tipo_ubicacion: String,
+    val codigo_iata_icao: String,
+    val direccion: String
+)
+
+data class Proveedor(
+    val id_proveedor: String,
+    val nombre_empresa: String,
+    val rfc: String,
+    val id_pais: String,
+    val pais: Pais? = null,
+    val id_localizacion: String,
+    val localizacion: Localizacion? = null,
+    val telefono: String,
+    val email_contacto: String,
+    val contacto_nombre: String,
+    val tipo_servicio_ofrecido: String,
+    val fecha_creacion: String
+)
+
+data class Agente(
+    val id_agente: String,
+    val nombre: String,
+    val apellido: String,
+    val email: String,
+    val telefono: String,
+    val tipo_agente: String,
+    val fecha_creacion: String
 )

@@ -36,23 +36,30 @@ class AuthRepository {
         telefono: String?
     ): Result<RegisterResponse> = withContext(Dispatchers.IO) {
         try {
-            val request = RegisterClienteRequest(
+            val request = RegisterClientRequest(
                 nombre = nombre,
                 apellido = apellido,
                 email = email,
                 password = password,
                 nombre_empresa = nombreEmpresa,
                 rfc = rfc,
-                direccion = direccion,
-                ciudad = ciudad,
-                pais = pais,
-                telefono = telefono
+                direccion = direccion ?: "",
+                ciudad = ciudad ?: "",
+                pais = pais ?: "",
+                telefono = telefono ?: ""
             )
-            
+
             val response = apiService.registerCliente(request)
             if (response.isSuccessful) {
-                response.body()?.let {
-                    Result.success(it)
+                response.body()?.let { registerClientResponse ->
+                    // Convertir RegisterClientResponse a RegisterResponse para compatibilidad
+                    val registerResponse = RegisterResponse(
+                        id_usuario = registerClientResponse.id_usuario.toString(),
+                        status = registerClientResponse.status,
+                        message = registerClientResponse.message,
+                        usuario = emptyList() // Lista vacía para compatibilidad
+                    )
+                    Result.success(registerResponse)
                 } ?: Result.failure(Exception("Response body is null"))
             } else {
                 val err = try { response.errorBody()?.string() } catch (_: Exception) { null }

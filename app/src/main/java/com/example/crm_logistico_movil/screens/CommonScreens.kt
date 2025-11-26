@@ -1,5 +1,6 @@
 package com.example.crm_logistico_movil.screens
 
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,7 +33,7 @@ import com.example.crm_logistico_movil.models.FacturaCliente
 import com.example.crm_logistico_movil.models.FacturaClienteTmp
 import com.example.crm_logistico_movil.viewmodels.AuthViewModel
 import com.example.crm_logistico_movil.viewmodels.ChatbotViewModel
-import com.example.crm_logistico_movil.repository.ClientRepository
+import com.example.crm_logistico_movil.repository.UnifiedClientRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,33 +45,239 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import com.example.crm_logistico_movil.models.AppNotification
+import com.example.crm_logistico_movil.viewmodels.NotificationViewModel
+import com.example.crm_logistico_movil.services.NotificationService
 
 // NOTIFICACIONES SCREEN
 @Composable
-fun NotificationsScreen(navController: NavController) {
-    val notifications = remember {
-        listOf(
-            NotificationItem("Nueva operación OP004 asignada", "Hace 5 minutos", Icons.Default.LocalShipping, Color(0xFF1976D2)),
-            NotificationItem("Factura INV-123 próxima a vencer", "Hace 1 hora", Icons.Default.Warning, Color(0xFFF57C00)),
-            NotificationItem("Incidencia reportada en OP001", "Hace 2 horas", Icons.Default.Error, Color(0xFFE91E63)),
-            NotificationItem("Cotización COT002 aprobada", "Hace 3 horas", Icons.Default.CheckCircle, Color(0xFF388E3C)),
-            NotificationItem("Cliente nuevo registrado", "Hace 5 horas", Icons.Default.PersonAdd, Color(0xFF6A1B9A))
-        )
+fun NotificationsScreen(
+    navController: NavController,
+    notificationViewModel: NotificationViewModel,
+    authViewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
+    val notificationsState by notificationViewModel.uiState.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
+    val currentClientId = authState.currentUser?.id_usuario
+
+    // Asegurar que el NotificationService esté inicializado
+    LaunchedEffect(notificationViewModel) {
+        NotificationService.initialize(notificationViewModel)
+        Log.d("NotificationsScreen", "NotificationService initialized from NotificationsScreen")
+    }
+
+
+    // Filtrar notificaciones para el cliente actual
+    val userNotifications = remember(notificationsState.notifications, currentClientId) {
+        if (currentClientId != null) {
+            notificationsState.notifications.filter {
+                it.clientId == currentClientId || it.clientId == null
+            }
+        } else {
+            notificationsState.notifications
+        }
+    }
+
+    // Log para debug
+    LaunchedEffect(notificationsState.notifications.size, currentClientId) {
+        Log.d("NotificationsScreen", "Total notifications: ${notificationsState.notifications.size}")
+        Log.d("NotificationsScreen", "Current client ID: $currentClientId")
+        Log.d("NotificationsScreen", "User notifications count: ${userNotifications.size}")
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = "Notificaciones",
-            onBackClick = { navController.popBackStack() }
+            onBackClick = { navController.popBackStack() },
+            actions = {
+                // Botón para marcar todas como leídas
+                if (notificationsState.unreadCount > 0) {
+                    TextButton(
+                        onClick = { notificationViewModel.markAllAsRead() }
+                    ) {
+                        Text(
+                            "Marcar todas leídas",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
         )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        if (notificationsState.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (userNotifications.isEmpty()) {
+            // Estado vacío
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NotificationsNone,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No tienes notificaciones",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Cuando tengas nuevas actualizaciones aparecerán aquí",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(userNotifications) { notification ->
+                    DynamicNotificationCard(
+                        notification = notification,
+                        onMarkAsRead = { notificationViewModel.markAsRead(notification.id) },
+                        onDismiss = { notificationViewModel.clearNotification(notification.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DynamicNotificationCard(
+    notification: AppNotification,
+    onMarkAsRead: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { if (!notification.isRead) onMarkAsRead() },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (notification.isRead) 1.dp else 3.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (notification.isRead)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            else
+                MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
-            items(notifications) { notification ->
-                NotificationCard(notification)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Icono de la notificación
+                    Card(
+                        shape = CircleShape,
+                        colors = CardDefaults.cardColors(
+                            containerColor = notification.getColor().copy(alpha = 0.1f)
+                        ),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = notification.getIcon(),
+                                contentDescription = null,
+                                tint = notification.getColor(),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // Contenido de la notificación
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = notification.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.Bold,
+                                color = if (notification.isRead)
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // Indicador de no leído
+                            if (!notification.isRead) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            notification.getColor(),
+                                            CircleShape
+                                        )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = notification.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (notification.isRead)
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = notification.getFormattedTime(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+
+                // Botón de descartar
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Descartar notificación",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
         }
     }
@@ -117,7 +324,8 @@ fun OperationsListScreen(navController: NavController) {
     val authState by authViewModel.uiState.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
-    val clientRepository = remember { ClientRepository() }
+    // MIGRACIÓN: Usar UnifiedClientRepository que puede cambiar entre sistemas según configuración
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
 
     var searchQuery by remember { mutableStateOf("") }
     var operations by remember { mutableStateOf<List<com.example.crm_logistico_movil.models.OperationExtended>>(emptyList()) }
@@ -341,7 +549,8 @@ fun InvoicesListScreen(navController: NavController) {
     val authState by authViewModel.uiState.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
-    val clientRepository = remember { ClientRepository() }
+    // MIGRACIÓN: Usar UnifiedClientRepository
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
 
     var searchQuery by remember { mutableStateOf("") }
     var facturas by remember { mutableStateOf<List<FacturaClienteTmp>>(emptyList()) }
@@ -900,7 +1109,8 @@ fun ProfileScreen(navController: NavController) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         val authState by authViewModel.uiState.collectAsState()
-                        val clientRepository = remember { ClientRepository() }
+                        // MIGRACIÓN: Usar UnifiedClientRepository
+                        val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
                         var clienteInfo by remember { mutableStateOf<Map<String, Any>?>(null) }
                         var loadingInfo by remember { mutableStateOf(false) }
 
@@ -971,7 +1181,8 @@ fun ProfileScreen(navController: NavController) {
 fun EditProfileScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.uiState.collectAsState()
-    val clientRepository = remember { ClientRepository() }
+    // MIGRACIÓN: Usar UnifiedClientRepository
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
     val coroutineScope = rememberCoroutineScope()
 
     var isLoading by remember { mutableStateOf(false) }
@@ -980,9 +1191,6 @@ fun EditProfileScreen(navController: NavController) {
     // form fields
     var nombreEmpresa by remember { mutableStateOf("") }
     var rfc by remember { mutableStateOf("") }
-    var direccion by remember { mutableStateOf("") }
-    var ciudad by remember { mutableStateOf("") }
-    var pais by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var emailContacto by remember { mutableStateOf("") }
     var contactoNombre by remember { mutableStateOf("") }
@@ -1002,9 +1210,6 @@ fun EditProfileScreen(navController: NavController) {
                 // fill fields from map with safe casts
                 nombreEmpresa = map?.get("nombre_empresa")?.toString() ?: nombreEmpresa
                 rfc = map?.get("rfc")?.toString() ?: rfc
-                direccion = map?.get("direccion")?.toString() ?: direccion
-                ciudad = map?.get("ciudad")?.toString() ?: ciudad
-                pais = map?.get("pais")?.toString() ?: pais
                 telefono = map?.get("telefono")?.toString() ?: telefono
                 emailContacto = map?.get("email_contacto")?.toString() ?: emailContacto
                 contactoNombre = map?.get("contacto_nombre")?.toString() ?: contactoNombre
@@ -1035,11 +1240,6 @@ fun EditProfileScreen(navController: NavController) {
             } else {
                 CustomOutlinedTextField(value = nombreEmpresa, onValueChange = { nombreEmpresa = it }, label = "Nombre de la Empresa")
                 CustomOutlinedTextField(value = rfc, onValueChange = { rfc = it }, label = "RFC")
-                CustomOutlinedTextField(value = direccion, onValueChange = { direccion = it }, label = "Dirección")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(modifier = Modifier.weight(1f)) { CustomOutlinedTextField(value = ciudad, onValueChange = { ciudad = it }, label = "Ciudad") }
-                    Column(modifier = Modifier.weight(1f)) { CustomOutlinedTextField(value = pais, onValueChange = { pais = it }, label = "País") }
-                }
                 CustomOutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = "Teléfono", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
                 CustomOutlinedTextField(value = emailContacto, onValueChange = { emailContacto = it }, label = "Email de contacto", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
                 CustomOutlinedTextField(value = contactoNombre, onValueChange = { contactoNombre = it }, label = "Nombre del contacto")
@@ -1060,9 +1260,6 @@ fun EditProfileScreen(navController: NavController) {
                         val payload = mapOf<String, Any?>(
                             "nombre_empresa" to nombreEmpresa,
                             "rfc" to rfc,
-                            "direccion" to direccion,
-                            "ciudad" to ciudad,
-                            "pais" to pais,
                             "telefono" to telefono,
                             "email_contacto" to emailContacto,
                             "contacto_nombre" to contactoNombre,
@@ -1072,14 +1269,20 @@ fun EditProfileScreen(navController: NavController) {
                             "email_usuario" to emailUsuario
                         )
                         coroutineScope.launch {
+                            println("🔄 Editando cliente con ID: $clientId")
+                            println("📤 Payload enviado: $payload")
                             val res = clientRepository.editClient(clientId, payload)
                             isLoading = false
                             if (res.isSuccess) {
-                                message = res.getOrNull()?.message ?: "Guardado"
+                                val response = res.getOrNull()
+                                println("✅ Respuesta exitosa: status=${response?.status}, message=${response?.message}")
+                                message = response?.message ?: "Guardado"
                                 // after saving, go back
                                 navController.popBackStack()
                             } else {
-                                message = res.exceptionOrNull()?.message ?: "Error al guardar"
+                                val error = res.exceptionOrNull()?.message ?: "Error al guardar"
+                                println("❌ Error al editar cliente: $error")
+                                message = error
                             }
                         }
                     } else {
@@ -1193,7 +1396,8 @@ fun QuoteDetailScreen(navController: NavController, quoteId: String?) {
 fun CreateQuoteRequestScreen(navController: NavController) {
     val authViewModel: com.example.crm_logistico_movil.viewmodels.AuthViewModel = viewModel()
     val authState by authViewModel.uiState.collectAsState()
-    val clientRepository = remember { com.example.crm_logistico_movil.repository.ClientRepository() }
+    // MIGRACIÓN: Usar UnifiedClientRepository
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
     val coroutineScope = rememberCoroutineScope()
     var tipoServicio by remember { mutableStateOf("") }
     var tipoCarga by remember { mutableStateOf("") }
@@ -1301,7 +1505,8 @@ fun CreateQuoteRequestScreen(navController: NavController) {
 fun QuoteRequestsScreen(navController: NavController) {
     val authViewModel: com.example.crm_logistico_movil.viewmodels.AuthViewModel = viewModel()
     val authState by authViewModel.uiState.collectAsState()
-    val repo = remember { com.example.crm_logistico_movil.repository.ClientRepository() }
+    // MIGRACIÓN: Usar UnifiedClientRepository
+    val repo = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
 
     var solicitudes by remember { mutableStateOf<List<com.example.crm_logistico_movil.models.SolicitudCotizacionExtended>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
@@ -1316,15 +1521,22 @@ fun QuoteRequestsScreen(navController: NavController) {
                 val proc = res.getOrNull()
                 val rows = proc?.results?.getOrNull(0) ?: emptyList()
                 solicitudes = rows.map { m ->
+                    val solicitudId = m["id_solicitud"]?.toString() ?: ""
+                    android.util.Log.d("QuoteRequestsScreen", "Loading solicitud $solicitudId - raw data: $m")
+
+                    // Aplicar enriquecimiento
+                    val enrichedData = repo.enrichQuoteRequestData(m)
+                    android.util.Log.d("QuoteRequestsScreen", "Enriched data for $solicitudId: $enrichedData")
+
                     com.example.crm_logistico_movil.models.SolicitudCotizacionExtended(
-                        id_solicitud = m["id_solicitud"]?.toString() ?: "",
+                        id_solicitud = solicitudId,
                         id_cliente = m["id_cliente"]?.toString() ?: "",
                         tipo_servicio = m["tipo_servicio"]?.toString() ?: "",
                         tipo_carga = m["tipo_carga"]?.toString() ?: "",
-                        origen_ciudad = m["origen_ciudad"]?.toString() ?: "",
-                        origen_pais = m["origen_pais"]?.toString() ?: "",
-                        destino_ciudad = m["destino_ciudad"]?.toString() ?: "",
-                        destino_pais = m["destino_pais"]?.toString() ?: "",
+                        origen_ciudad = enrichedData["origen_ciudad"]?.toString() ?: m["origen_ciudad"]?.toString() ?: "",
+                        origen_pais = enrichedData["origen_pais"]?.toString() ?: m["origen_pais"]?.toString() ?: "",
+                        destino_ciudad = enrichedData["destino_ciudad"]?.toString() ?: m["destino_ciudad"]?.toString() ?: "",
+                        destino_pais = enrichedData["destino_pais"]?.toString() ?: m["destino_pais"]?.toString() ?: "",
                         fecha_solicitud = m["fecha_solicitud"]?.toString() ?: "",
                         descripcion_mercancia = m["descripcion_mercancia"]?.toString(),
                         valor_estimado_mercancia = m["valor_estimado_mercancia"]?.toString()?.toDoubleOrNull(),
@@ -1395,7 +1607,8 @@ fun InvoiceDetailScreen(navController: NavController, invoiceId: String?) {
         return
     }
 
-    val clientRepository = remember { ClientRepository() }
+    // MIGRACIÓN: Usar UnifiedClientRepository (migrado completamente)
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
     var factura by remember { mutableStateOf<FacturaClienteTmp?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
