@@ -1,30 +1,86 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+
+    <!-- Grupo principal centrado -->
+    <group
+        android:translateX="54"
+        android:translateY="54">
+
+        <!-- Camión de carga principal -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-28,-12L-28,8L-16,8L-16,12L16,12L16,8L28,8L28,-8L16,-8L16,-12L-16,-12L-16,-8L-28,-8Z"/>
+
+        <!-- Cabina del camión -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="2"
+            android:pathData="M-28,-12L-16,-12L-16,-8L-28,-8Z"/>
+
+        <!-- Ventanas de la cabina -->
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M-26,-11L-18,-11L-18,-9L-26,-9Z"/>
+
+        <!-- Contenedor de carga -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="2"
+            android:pathData="M-16,-12L16,-12L16,8L-16,8Z"/>
+
+        <!-- Líneas del contenedor -->
+        <path
+            android:strokeColor="#FF018786"
+            android:strokeWidth="1"
+            android:pathData="M-12,-8L12,-8M-12,-4L12,-4M-12,0L12,0M-12,4L12,4"/>
+
+        <!-- Ruedas -->
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M-22,8A4,4,0,1,1,-22,16A4,4,0,1,1,-22,8Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="2"
+            android:pathData="M-22,10A2,2,0,1,1,-22,14A2,2,0,1,1,-22,10Z"/>
+
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M22,8A4,4,0,1,1,22,16A4,4,0,1,1,22,8Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="2"
+            android:pathData="M22,10A2,2,0,1,1,22,14A2,2,0,1,1,22,10Z"/>
+
+        <!-- Logo "LC" de LogiCorp en el contenedor -->
+        <group android:translateX="0" android:translateY="-2">
+            <!-- L -->
+            <path
+                android:fillColor="#FF018786"
+                android:pathData="M-8,-6L-8,6L-6,6L-6,4L-2,4L-2,6L0,6L0,-6L-2,-6L-2,2L-6,2L-6,-6Z"/>
+            <!-- C -->
+            <path
+                android:fillColor="#FF018786"
+                android:pathData="M2,-6Q6,-6 8,-2Q8,0 8,2Q6,6 2,6Q0,4 0,2L2,2Q2,4 4,4Q6,2 6,0Q6,-2 6,-4Q4,-4 2,-4Q0,-2 0,0L2,0Q2,-2 2,-4Q4,-4 6,-2"/>
+        </group>
+
+        <!-- Elementos de movimiento -->
+        <group android:alpha="0.7">
+            <path
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="2"
+                android:pathData="M-35,-20L-30,-15L-35,-10"/>
+            <path
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="2"
+                android:pathData="M35,-20L30,-15L35,-10"/>
+        </group>
+
+    </group>
 </vector>

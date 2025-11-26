@@ -36,8 +36,8 @@ fun OperationDetailScreen(
     var operationDetail by remember { mutableStateOf<OperationDetail?>(null) }
     var trackingInfo by remember { mutableStateOf<List<TrackingInfo>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
-    val clientRepository = remember { ClientRepository() }
+
+    val clientRepository = remember { com.example.crm_logistico_movil.repository.UnifiedClientRepository() }
     val scope = rememberCoroutineScope()
     
     LaunchedEffect(operationId) {

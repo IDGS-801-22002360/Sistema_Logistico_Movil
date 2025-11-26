@@ -17,6 +17,7 @@ import com.example.crm_logistico_movil.ui.theme.CRM_Logistico_MovilTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setTheme(R.style.Theme_CRM_Logistico_Movil)
         enableEdgeToEdge()
         setContent {
             CRM_Logistico_MovilTheme {

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Fondo circular con gradiente -->
+    <path
+        android:fillColor="#FF03DAC5"
+        android:pathData="M54,54m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0"/>
+
+    <!-- Contenedor principal -->
+    <group
+        android:translateX="54"
+        android:translateY="54">
+
+        <!-- Camión logístico simplificado -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-20,-8L-20,8L-12,8L-12,12L12,12L12,8L20,8L20,-8L12,-8L12,-12L-12,-12L-12,-8Z"/>
+
+        <!-- Cabina del camión -->
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M-20,-8L-12,-8L-12,-12L-20,-12Z"/>
+
+        <!-- Ruedas -->
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M-16,7A3,3,0,1,1,-16,13A3,3,0,1,1,-16,7Z"/>
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M16,7A3,3,0,1,1,16,13A3,3,0,1,1,16,7Z"/>
+
+        <!-- Contenedor de carga con líneas -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="1"
+            android:pathData="M-8,-8L8,-8M-8,-4L8,-4M-8,0L8,0M-8,4L8,4"/>
+
+        <!-- Letra "L" estilizada de LogiCorp -->
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M-25,20L-25,25L-15,25L-15,23L-23,23L-23,20Z"/>
+
+        <!-- Letra "C" estilizada de LogiCorp -->
+        <path
+            android:fillColor="#FF018786"
+            android:pathData="M25,20Q23,18 20,20Q18,22 20,25Q23,27 25,25"/>
+
+        <!-- Elementos de movimiento (flechas direccionales) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="1"
+            android:pathData="M-30,-20L-25,-15L-30,-10"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#FF018786"
+            android:strokeWidth="1"
+            android:pathData="M30,-20L25,-15L30,-10"/>
+
+    </group>
+</vector>

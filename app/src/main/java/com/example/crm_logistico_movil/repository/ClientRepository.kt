@@ -17,7 +17,18 @@ class ClientRepository {
             // Prefer the client-specific endpoint if available (backend path: /cliente/{client_id}/crear_solicitud)
             val clientId = solicitudRequest.id_cliente
             val response = if (!clientId.isNullOrBlank()) {
-                apiService.crearSolicitudCliente(clientId, solicitudRequest)
+                // Crear body sin id_cliente para el endpoint específico del cliente
+                val requestBody = SolicitudRequestBody(
+                    tipo_servicio = solicitudRequest.tipo_servicio,
+                    tipo_carga = solicitudRequest.tipo_carga,
+                    origen_ciudad = solicitudRequest.origen_ciudad,
+                    origen_pais = solicitudRequest.origen_pais,
+                    destino_ciudad = solicitudRequest.destino_ciudad,
+                    destino_pais = solicitudRequest.destino_pais,
+                    descripcion_mercancia = solicitudRequest.descripcion_mercancia,
+                    valor_estimado_mercancia = solicitudRequest.valor_estimado_mercancia
+                )
+                apiService.crearSolicitudCliente(clientId, requestBody)
             } else {
                 apiService.crearSolicitud(solicitudRequest)
             }
@@ -165,13 +176,22 @@ class ClientRepository {
 
     suspend fun editClient(clientId: String, payload: Map<String, Any?>): Result<com.example.crm_logistico_movil.models.EditClientResponse> = withContext(Dispatchers.IO) {
         try {
+            println("🔗 ClientRepository.editClient - ID: $clientId")
+            println("📋 Payload: $payload")
             val resp = apiService.editarCliente(clientId, payload)
+            println("🌐 Response code: ${resp.code()}")
             if (resp.isSuccessful) {
-                resp.body()?.let { Result.success(it) } ?: Result.failure(Exception("Response body is null"))
+                resp.body()?.let {
+                    println("✅ Edit successful: ${it}")
+                    Result.success(it)
+                } ?: Result.failure(Exception("Response body is null"))
             } else {
-                Result.failure(Exception("Error: ${resp.code()} - ${resp.message()}"))
+                val errorMsg = "Error: ${resp.code()} - ${resp.message()}"
+                println("❌ Edit failed: $errorMsg")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            println("💥 Exception in editClient: ${e.message}")
             Result.failure(e)
         }
     }

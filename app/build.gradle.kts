@@ -90,6 +90,12 @@ dependencies {
     // Maps (para tracking)
     implementation("com.google.maps.android:maps-compose:2.15.0")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
+
+    // HERE Maps SDK
+    /*implementation("com.here.android:sdk-core:4.19.0.0")
+    implementation("com.here.android:sdk-map-view:4.19.0.0")
+    implementation("com.here.android:sdk-routing:4.19.0.0")
+    implementation("com.here.android:sdk-navigation:4.19.0.0")*/
     
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")

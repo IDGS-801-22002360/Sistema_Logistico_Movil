@@ -100,7 +100,7 @@ class DatabaseManager private constructor() {
                         }
                     )
                     
-                    ApiResponse("OK", message, LoginResponse("OK", message, listOf(user)))
+                    ApiResponse("OK", message, LoginResponse(1, message, listOf(user)))
                 } else {
                     ApiResponse("ERROR", "Error al obtener datos del usuario")
                 }
@@ -162,7 +162,7 @@ class DatabaseManager private constructor() {
                         }
                     )
                     
-                    ApiResponse("OK", message, LoginResponse("OK", message, listOf(user)))
+                    ApiResponse("OK", message, LoginResponse(1, message, listOf(user)))
                 } else {
                     ApiResponse("ERROR", "Error al obtener datos del usuario registrado")
                 }
@@ -749,6 +749,7 @@ class DatabaseManager private constructor() {
             while (resultSet.next()) {
                 cities.add(Localizacion(
                     id_localizacion = resultSet.getString("id_localizacion"),
+                    id_pais = countryId,
                     nombre_ciudad = resultSet.getString("nombre_ciudad"),
                     tipo_ubicacion = resultSet.getString("tipo_ubicacion"),
                     codigo_iata_icao = resultSet.getString("codigo_iata_icao"),

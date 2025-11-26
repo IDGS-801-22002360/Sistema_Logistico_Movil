@@ -92,8 +92,8 @@ fun LoginScreen(
         ) {
             // Logo
             Image(
-                painter = painterResource(id = R.drawable.ic_utl_logo),
-                contentDescription = "UTL Logo",
+                painter = painterResource(id = R.drawable.ic_logicorp_logo),
+                contentDescription = "LogiCorp Logo",
                 modifier = Modifier.size(120.dp).padding(bottom = 32.dp)
             )
 

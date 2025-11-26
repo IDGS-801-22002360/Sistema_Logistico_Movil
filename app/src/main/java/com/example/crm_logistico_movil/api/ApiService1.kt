@@ -7,11 +7,8 @@ import retrofit2.http.*
 import kotlin.jvm.JvmSuppressWildcards
 
 interface ApiService {
-    @POST("login")
+    @POST("login-movil")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
-
-    @POST("register_cliente")
-    suspend fun registerCliente(@Body request: RegisterClienteRequest): Response<RegisterResponse>
 
     @GET("usuario/{userId}")
     suspend fun getUsuario(@Path("userId") userId: String): Response<UserResponse>
@@ -23,7 +20,7 @@ interface ApiService {
     @POST("cliente/{client_id}/crear_solicitud")
     suspend fun crearSolicitudCliente(
         @Path("client_id") clientId: String,
-        @Body request: SolicitudRequest
+        @Body request: SolicitudRequestBody
     ): Response<SolicitudResponse>
 
     @GET("cliente/{client_id}/operaciones")
@@ -68,9 +65,39 @@ interface ApiService {
         @Path("id_operacion") idOperacion: String
     ): Response<TrackingResponse>
 
+    // Detail endpoints for individual operations and invoices
+    @GET("operacion/{id_operacion}")
+    suspend fun getOperacionDetalle(
+        @Path("id_operacion") idOperacion: String
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
+    @GET("factura/{id_factura}")
+    suspend fun getFacturaDetalle(
+        @Path("id_factura") idFactura: String
+    ): Response<FacturaClienteTmp>
+
     @POST("call/{procName}")
     suspend fun callProcedure(
         @Path("procName") procName: String,
         @Body params: Map<String, @JvmSuppressWildcards Any?>
     ): Response<ProcedureResponse>
+
+    // Reference data endpoints
+    @GET("proveedores")
+    suspend fun getProveedores(): Response<List<com.example.crm_logistico_movil.models.Proveedor>>
+
+    @GET("agentes")
+    suspend fun getAgentes(): Response<List<com.example.crm_logistico_movil.models.Agente>>
+
+    @GET("paises")
+    suspend fun getPaises(): Response<List<com.example.crm_logistico_movil.models.Pais>>
+
+    @GET("localizaciones")
+    suspend fun getLocalizaciones(): Response<List<com.example.crm_logistico_movil.models.Localizacion>>
+
+    // Register client endpoint
+    @POST("register_cliente")
+    suspend fun registerCliente(
+        @Body body: RegisterClientRequest
+    ): Response<RegisterClientResponse>
 }

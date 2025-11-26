@@ -151,19 +151,6 @@ data class FacturaDetail(
     val notasCredito: List<NotaCreditoInfo>
 )
 
-data class Pais(
-    val id_pais: String,
-    val nombre_pais: String,
-    val codigo_iso2: String
-)
-
-data class Localizacion(
-    val id_localizacion: String,
-    val nombre_ciudad: String,
-    val tipo_ubicacion: String,
-    val codigo_iata_icao: String? = null,
-    val direccion: String? = null
-)
 
 // Request para nueva solicitud de cotización
 data class NuevaSolicitudCotizacion(

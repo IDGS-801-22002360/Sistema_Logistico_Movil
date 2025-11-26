@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <style name="Theme.CRM_Logistico_Movil" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Tema para la pantalla de splash -->
+    <style name="SplashTheme" parent="Theme.CRM_Logistico_Movil">
+        <item name="android:windowBackground">@drawable/safe_splash_background</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
 </resources>

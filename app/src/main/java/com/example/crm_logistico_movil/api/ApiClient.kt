@@ -10,14 +10,34 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
+
+    // Interceptor for adding headers and logging
+    private val headerInterceptor = Interceptor { chain ->
+        val request = chain.request().newBuilder()
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "application/json")
+            .build()
+
+        val response = chain.proceed(request)
+
+        // Log request and response for debugging
+        println("API Request: ${request.method} ${request.url}")
+        println("API Response: ${response.code}")
+
+        response
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(headerInterceptor)
         .connectTimeout(ApiConfig.CONNECTION_TIMEOUT, TimeUnit.SECONDS)
         .readTimeout(ApiConfig.READ_TIMEOUT, TimeUnit.SECONDS)
         .build()
@@ -62,6 +82,24 @@ object ApiClient {
                     }
                 } catch (e: Exception) {
                     false
+                }
+            }
+        })
+        // Custom deserializer for String fields that might come as numbers from API
+        .registerTypeAdapter(String::class.java, JsonDeserializer { json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?
+            ->
+            if (json == null || json.isJsonNull) {
+                null
+            } else {
+                try {
+                    when {
+                        json.isJsonPrimitive && json.asJsonPrimitive.isString -> json.asString
+                        json.isJsonPrimitive && json.asJsonPrimitive.isNumber -> json.asString
+                        json.isJsonPrimitive && json.asJsonPrimitive.isBoolean -> json.asString
+                        else -> json.toString()
+                    }
+                } catch (e: Exception) {
+                    json.toString()
                 }
             }
         })
