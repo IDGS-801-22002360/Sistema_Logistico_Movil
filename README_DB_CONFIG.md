@@ -99,3 +99,8 @@ Una vez que tengas funcionando la autenticación, podrás expandir la aplicació
 - **Red**: Asegúrate de que el dispositivo Android tenga acceso a la red donde está el servidor MySQL
 - **Firewall**: Verificar que el puerto 3306 (MySQL) esté abierto en el servidor
 - **Permisos**: La aplicación ya incluye los permisos de internet necesarios
+- **IP fija**: El servidor MySQL debe tener una IP estática para evitar pérdida de conexión
+- **Usuario MySQL dedicado**: Crear un usuario exclusivo para la app con permisos limitados
+- **Seguridad**: No almacenar credenciales en texto plano dentro de la app
+- **API recomendada**: Para producción, se recomienda usar un backend en lugar de conectar directo a MySQL
+- **Timeout**: Configurar tiempos de espera adecuados en la conexión
